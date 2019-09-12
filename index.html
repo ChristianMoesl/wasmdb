@@ -9,82 +9,13 @@
   <h1>File</h1>
   <input type="file" id="files" name="files[]" multiple />
   <output id="list"></output>
-  <div id="drop_zone">Drop files here</div>
-  <output id="list"></output>
-  <input type='text' id="query" />
-  <button onclick="processFile();">Process</button>
+  <input type='text' id="query" style="width:100%"/>
+  <button id="process">Process</button>
   <h1>Result:</h1>
-  <p id="result"></p>
+  <table id="results" style="width:100%">
+  </table>
 </body>
 
 <script src="https://webassembly.github.io/wabt/demo/libwabt.js"></script>
-<script src="environment.js"></script>
-<script>
-  // Check for the various File API support.
-  if (window.File && window.FileReader && window.FileList && window.Blob) {
-    // Great success! All the File APIs are supported.
-  } else {
-    alert('The File APIs are not fully supported in this browser.');
-  }
-
-  let files = new Map();
-
-  function processFile() {
-    WabtModule().then(async (wabt) => {
-      const features = [ 'mutable_globals', 'sign_extension' ];
-      const query = encodeURIComponent(document.getElementById("query").value);
-      const result = await fetch(`https://p9xas8x1u8.execute-api.us-east-2.amazonaws.com/test/javatest?query=${query}`);
-      const source = await result.text();
-
-      var module = wabt.parseWat('test.wast', source, features);
-      module.resolveNames();
-      module.validate(features);
-      var binaryOutput = module.toBinary({log: true, write_debug_names:true});
-      const wasmResult = await window.runWasmBinary(binaryOutput.buffer);
-      document.getElementById("result").innerText = wasmResult.output;
-    });
-  }
-
-  function handleFileSelect(evt) {
-    let fileHandles = evt.target.files; // FileList object
-
-    // files is a FileList of File objects. List some properties.
-    let output = [];
-    for (var i = 0, f; f = fileHandles[i]; i++) {
-      output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ',
-                  f.size, ' bytes, last modified: ',
-                  f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a',
-                  '</li>');
-    }
-    document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
-
-    for (var i = 0, f; f = fileHandles[i]; i++) {
-      const file = f;
-
-      const reader = new FileReader();
-      reader.onload = event => {
-        files.set(file.name, event.target.result);
-      };
-      reader.readAsArrayBuffer(file);
-    }
-  }
-
-  document.getElementById('files').addEventListener('change', handleFileSelect, false);
-
-
-  // let files = new Map();
-  // async function fetchFile(path) { return (await fetch(path)).arrayBuffer(); }
-  // async function prefetchFiles() {
-  //   files.set("src/data/t1gram.csv", await fetchFile("src/data/t1gram.csv"));
-  //   files.set("src/data/t.csv", await fetchFile("src/data/t.csv"));
-  //   files.set("src/data/talks.csv", await fetchFile("src/data/talks.csv"));
-  //   files.set("src/data/word1.csv", await fetchFile("src/data/word1.csv"));
-  //   files.set("src/data/words.csv", await fetchFile("src/data/words.csv"));
-  // }
-  // prefetchFiles().then(() => window.runWasm("a")).then(result => {
-  //   document.getElementById("result").innerText = result.output;
-  // }).catch(reason => {
-  //   console.error(reason.toString());
-  // });
-</script>
+<script src="bundle.js"></script>
 </html>

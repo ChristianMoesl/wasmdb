@@ -1,81 +1,69 @@
 (function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
-(function (process){
-const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
-let   isNode = typeof process !== 'undefined' && process.versions != null && process.versions.node != null;
-const isLambda = isNode && !!(process.env.LAMBDA_TASK_ROOT || false);
-if (isLambda) isNode = false;
-
-const fs = (isNode  || isLambda) ? require('fs') : null;
-const util = (isNode || isLambda) ? require('util') : null;
-const printf = require('printf');
-
-const readFile = (isNode || isLambda) ? util.promisify(fs.readFile) : null;
-
-let consoleOutput = [ ];
-
-function getBinaryPathInBrowser() {
-    const x = document.currentScript.src.split("/");
-    return x[x.length - 1].replace(".js", ".wasm");
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const printf = require("printf");
+exports.files = new Map();
+let printListener;
+function setOnPrintListener(listener) {
+    printListener = listener;
 }
-
-function getBinaryPathInNode() {
-    return process.argv[1].replace(".js", ".wasm");
+exports.setOnPrintListener = setOnPrintListener;
+function notfiyPrintListener(s) {
+    if (printListener !== undefined)
+        printListener(s);
 }
-
-const wasmPath = isLambda ? "index.wasm" : isBrowser ? getBinaryPathInBrowser() : getBinaryPathInNode();
-
 const heapInGb = 4; // 4 is maximum for wasm32
 const bytesPerPage = 64 * 1024;
-
 let mem = null;
-
 let allocated = 0;
 let bump = 0;
-
 function malloc(size) {
     // for word alignment
     const alignedSize = Math.ceil(size / 8.0) * 8;
-
     if (alignedSize > allocated - bump) {
         allocated = mem.grow(Math.ceil(alignedSize / bytesPerPage)) * bytesPerPage;
-
-        if (bump === 0) bump = allocated;
+        if (bump === 0)
+            bump = allocated;
     }
-
     const addr = bump;
-
     bump = bump + alignedSize;
-
     return addr;
 }
-
 function strlen(arr) {
     let len = 0;
-    while (arr[len] !== 0) { len++; }
+    while (arr[len] !== 0) {
+        len++;
+    }
     return len;
 }
-
 function str(ptr, len) {
     const buf = new Uint8Array(mem.buffer, ptr);
-    const length = (len == null) ? strlen(buf) : len;
-    return String.fromCharCode.apply(null, (buf.subarray(0, length)));
+    const length = len === undefined ? strlen(buf) : len;
+    // @ts-ignore
+    return String.fromCharCode.apply(null, buf.subarray(0, length));
 }
-
 function insertAt(arr, idx, string) {
     for (let i = 0; i < string.length; i++)
         arr[idx++] = string.charCodeAt(i);
     arr[idx++] = 0;
     return idx;
 }
-
 function save(str) {
     const addr = malloc(str.length + 1);
     insertAt(new Uint8Array(mem.buffer), addr, str);
     return addr;
 }
-
 function loadArgs(typeMask) {
-    let args = [];
+    let args = Array();
     for (let i = 0; i < 4; i++) {
         switch ((typeMask >> (i * 8)) & 255) {
             case 0: // no argument
@@ -90,10 +78,10 @@ function loadArgs(typeMask) {
                 args.push(str(new Uint32Array(mem.buffer)[i * 2]));
                 break;
             case 4: // int
-                args.push(Number(new BigUint64Array(mem.buffer)[i]));
+                args.push(Number(new Array(mem.buffer)[i]));
                 break;
             case 5: // long
-                args.push(Number(new BigUint64Array(mem.buffer)[i]));
+                args.push(Number(new Array(mem.buffer)[i]));
                 break;
             case 6: // float
                 args.push(new Float32Array(mem.buffer)[i * 2]);
@@ -107,223 +95,622 @@ function loadArgs(typeMask) {
     }
     return args;
 }
-
-function printlnConsole(typeMask) {
-    if (typeMask === 0)
-        console.log();
-    else
-        loadArgs(typeMask).forEach(x => console.log(x));
-}
-
 function printlnString(typeMask) {
-    if (typeMask === 0)
-        consoleOutput.push("\n");
-    else
-        loadArgs(typeMask).forEach(x => consoleOutput.push([x, "\n"]));
+    if (typeMask !== 0)
+        loadArgs(typeMask).forEach(x => notfiyPrintListener(x.toString()));
+    notfiyPrintListener("\n");
 }
-
-function printfConsole(formatString, typeMask) {
-    if (typeMask == null)
-        process.stdout.write(str(formatString));
-    else
-        printf(process.stdout, str(formatString), ...loadArgs(typeMask));
-}
-
 function printfString(formatString, typeMask) {
-    consoleOutput.push(typeMask == null ? str(formatString) : printf(str(formatString), ...loadArgs(typeMask)));
+    notfiyPrintListener(typeMask == null ? str(formatString) : printf(str(formatString), ...loadArgs(typeMask)));
 }
-
-function printDataConsole(start, len) {
-    new Uint8Array(mem.buffer, start, len).forEach(x => process.stdout.write(String.fromCharCode(x)))
-}
-
 function printDataString(start, len) {
-    consoleOutput.push(str(start, len));
+    notfiyPrintListener(str(start, len));
 }
-
-function readFileNode(name) {
-    const path = str(name);
-    const len = fs.statSync(path).size;
-    const start = malloc(len + 4);
-    new Uint32Array(mem.buffer, start).fill(len, 0, 1);
-    const fd = fs.openSync(path, 0);
-    fs.readSync(fd, new Uint8Array(mem.buffer, start), 4, len, null);
-    return start + 4;
-}
-
 function fetchFile(name) {
-    const splitted = str(name).split("/");
-    const path = splitted[splitted.length - 1];
-    if ((typeof files) === "undefined" || files.get(path) === undefined)
+    const file = exports.files.get(str(name));
+    if (file === undefined)
         error("file has to be prefetched in browser");
-
-    const file = new Uint8Array(files.get(path));
-
-    const len = file.length;
+    const fileBuffer = new Uint8Array(file);
+    const len = fileBuffer.length;
     const start = malloc(len + 4);
     new Uint32Array(mem.buffer, start).fill(len, 0, 1);
-    new Uint8Array(mem.buffer, start + 4).set(file);
+    new Uint8Array(mem.buffer, start + 4).set(fileBuffer);
     return start + 4;
 }
-
 function error(string) {
-    if (isNode) {
-        console.error(string);
-        process.exit(1);
-    } else
-        throw Error(string);
+    throw Error(string);
 }
-
-async function fetchBinary(path) {
-    let binary = null;
-    if (isBrowser) {
-        const response = await fetch(path);
-        binary = await response.arrayBuffer();
-    } else
-        binary = await readFile(path);
-    return new Uint8Array(binary);
-}
-
-async function run(...args) {
-    function printUsage() {
-        const s = `usage: arg0`;
-        error(s);
-    }
-
-    const arg0 = (args[0] === "true") ? true :
-             (args[0] === "false") ? false : undefined;
-
-    if (arg0 === undefined) printUsage();
-
-    consoleOutput = [ ];
-
-    allocated = 0;
-    bump = 0;
-
-    const memory = new WebAssembly.Memory({
-        initial: 256,
-        maximum: heapInGb * Math.pow(2, 30) / bytesPerPage
+function run(binary) {
+    return __awaiter(this, void 0, void 0, function* () {
+        allocated = 0;
+        bump = 0;
+        const memory = new WebAssembly.Memory({
+            initial: 256,
+            maximum: heapInGb * Math.pow(2, 30) / bytesPerPage
+        });
+        let env = {
+            abortStackOverflow: (err) => { throw new Error(`overflow: ` + err); },
+            table: new WebAssembly.Table({ initial: 0, maximum: 0, element: 'anyfunc' }),
+            __table_base: 0,
+            memory,
+            __memory_base: 1024,
+            STACKTOP: 0,
+            STACK_MAX: memory.buffer.byteLength,
+            malloc: (x) => malloc(x),
+            println: printlnString,
+            printf: printfString,
+            printData: printDataString,
+            stringSlice: (s, start, end) => save(str(s).slice(start, end)),
+            stringToDouble: (s) => Number.parseFloat(str(s)),
+            stringToInt: (s) => Number.parseInt(str(s)),
+            stringLength: (s) => str(s).length,
+            stringCharAt: (s, i) => str(s).charAt(i),
+            readFile: fetchFile,
+        };
+        try {
+            const results = yield WebAssembly.instantiate(binary, { env });
+            mem = results.instance.exports.mem;
+            return results.instance.exports.Snippet(0);
+        }
+        catch (reason) {
+            error(reason.toString());
+        }
     });
-
-    let env = {
-        abortStackOverflow: (err) => { throw new Error(`overflow: ` + err); },
-        table: new WebAssembly.Table({ initial: 0, maximum: 0, element: 'anyfunc' }),
-        __table_base: 0,
-        memory,
-        __memory_base: 1024,
-        STACKTOP: 0,
-        STACK_MAX: memory.buffer.byteLength,
-        malloc: x => malloc(x),
-        println0: isNode ? printlnConsole : printlnString,
-        println1: isNode ? printlnConsole : printlnString,
-        println2: isNode ? printlnConsole : printlnString,
-        println3: isNode ? printlnConsole : printlnString,
-        println4: isNode ? printlnConsole : printlnString,
-        printf0: isNode ? printfConsole : printfString,
-        printf1: isNode ? printfConsole : printfString,
-        printf2: isNode ? printfConsole : printfString,
-        printf3: isNode ? printfConsole : printfString,
-        printf4: isNode ? printfConsole : printfString,
-        printData: isNode ? printDataConsole : printDataString,
-        stringSlice: (s, start, end) => save(str(s).slice(start, end)),
-        stringToDouble: s => Number.parseFloat(str(s)),
-        stringToInt: s => Number.parseInt(str(s)),
-        stringLength: s => str(s).length,
-        stringCharAt: (s, i) => str(s).charAt(i),
-        readFile: isBrowser ? fetchFile : readFileNode,
-    };
-
-    let returned = undefined;
-    try {
-        const wasm = await fetchBinary(wasmPath);
-        const results = await WebAssembly.instantiate(wasm, { env });
-
-        mem = results.instance.exports.mem;
-
-        returned = results.instance.exports.Snippet(arg0);
-
-    } catch (reason) {
-        error(reason.toString());
-    }
-
-    return {
-        status: returned,
-        output: consoleOutput.join(""),
-    };
 }
+exports.run = run;
 
-async function runBinary(binary) {
-    consoleOutput = [ ];
-
-    allocated = 0;
-    bump = 0;
-
-    const memory = new WebAssembly.Memory({
-        initial: 256,
-        maximum: heapInGb * Math.pow(2, 30) / bytesPerPage
+},{"printf":3}],2:[function(require,module,exports){
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
-
-    let env = {
-        abortStackOverflow: (err) => { throw new Error(`overflow: ` + err); },
-        table: new WebAssembly.Table({ initial: 0, maximum: 0, element: 'anyfunc' }),
-        __table_base: 0,
-        memory,
-        __memory_base: 1024,
-        STACKTOP: 0,
-        STACK_MAX: memory.buffer.byteLength,
-        malloc: x => malloc(x),
-        println0: isNode ? printlnConsole : printlnString,
-        println1: isNode ? printlnConsole : printlnString,
-        println2: isNode ? printlnConsole : printlnString,
-        println3: isNode ? printlnConsole : printlnString,
-        println4: isNode ? printlnConsole : printlnString,
-        printf0: isNode ? printfConsole : printfString,
-        printf1: isNode ? printfConsole : printfString,
-        printf2: isNode ? printfConsole : printfString,
-        printf3: isNode ? printfConsole : printfString,
-        printf4: isNode ? printfConsole : printfString,
-        printData: isNode ? printDataConsole : printDataString,
-        stringSlice: (s, start, end) => save(str(s).slice(start, end)),
-        stringToDouble: s => Number.parseFloat(str(s)),
-        stringToInt: s => Number.parseInt(str(s)),
-        stringLength: s => str(s).length,
-        stringCharAt: (s, i) => str(s).charAt(i),
-        readFile: isBrowser ? fetchFile : readFileNode,
-    };
-
-    let returned = undefined;
-    try {
-        const results = await WebAssembly.instantiate(binary, { env });
-
-        mem = results.instance.exports.mem;
-        returned = results.instance.exports.Snippet(1);
-
-    } catch (reason) {
-        error(reason.toString());
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const environment_1 = require("./environment");
+function processFile() {
+    prepareGui();
+    // @ts-ignore
+    WabtModule().then((wabt) => __awaiter(this, void 0, void 0, function* () {
+        const features = ['mutable_globals', 'sign_extension'];
+        // @ts-ignore
+        const query = encodeURIComponent(document.getElementById("query").value);
+        const result = yield fetch(`https://p9xas8x1u8.execute-api.us-east-2.amazonaws.com/test/javatest?query=${query}`);
+        const source = yield result.text();
+        console.log(source);
+        var module = wabt.parseWat('test.wast', source, features);
+        module.resolveNames();
+        module.validate(features);
+        var binaryOutput = module.toBinary({ log: true, write_debug_names: true });
+        yield environment_1.run(binaryOutput.buffer);
+    }));
+}
+function handleFileSelect(evt) {
+    let fileHandles = evt.target.files; // FileList object
+    // files is a FileList of File objects. List some properties.
+    let output = [];
+    for (var i = 0, f; f = fileHandles[i]; i++) {
+        output.push('<li><strong>', escape(f.name), '</strong> (', f.type || 'n/a', ') - ', f.size, ' bytes, last modified: ', f.lastModifiedDate ? f.lastModifiedDate.toLocaleDateString() : 'n/a', '</li>');
     }
-
-    return {
-        status: returned,
-        output: consoleOutput.join(""),
-    };
+    document.getElementById('list').innerHTML = '<ul>' + output.join('') + '</ul>';
+    for (var i = 0, f; f = fileHandles[i]; i++) {
+        const file = f;
+        const reader = new FileReader();
+        reader.onload = event => {
+            console.log(`loaded ${file.name}`);
+            // @ts-ignore
+            environment_1.files.set(file.name, event.target.result);
+        };
+        reader.readAsArrayBuffer(file);
+    }
 }
-
-if (isNode) run(...process.argv.slice(2));
-
-if (isLambda) {
-    exports.handler = async (event, context, callback) => {
-        context.succeed((await run("a")).output);
-    };
+function prepareGui() {
+    table.innerHTML = "";
+    row = table.insertRow(0);
+    cell = row.insertCell(0);
 }
-
-if (isBrowser) {
-    window.runWasm = run;
-    window.runWasmBinary = runBinary;
+function parseData(s) {
+    for (const c of s) {
+        if (c === ",")
+            cell = row.insertCell(row.cells.length);
+        else if (c === "\n") {
+            row = table.insertRow(table.rows.length);
+            cell = row.insertCell(row.cells.length);
+        }
+        else
+            cell.innerHTML += c;
+    }
 }
-}).call(this,require('_process'))
-},{"_process":13,"fs":2,"printf":35,"util":34}],2:[function(require,module,exports){
+const table = document.getElementById('results');
+let row = table.insertRow(0);
+let cell = row.insertCell(0);
+environment_1.setOnPrintListener(parseData);
+document.getElementById('files').addEventListener('change', handleFileSelect, false);
+document.getElementById("process").addEventListener("click", (e) => processFile());
 
-},{}],3:[function(require,module,exports){
+},{"./environment":1}],3:[function(require,module,exports){
+
+var util = require('util');
+
+var tokenize = function(/*String*/ str, /*RegExp*/ re, /*Function?*/ parseDelim, /*Object?*/ instance){
+  // summary:
+  //    Split a string by a regular expression with the ability to capture the delimeters
+  // parseDelim:
+  //    Each group (excluding the 0 group) is passed as a parameter. If the function returns
+  //    a value, it's added to the list of tokens.
+  // instance:
+  //    Used as the "this' instance when calling parseDelim
+  var tokens = [];
+  var match, content, lastIndex = 0;
+  while((match = re.exec(str))){
+    content = str.slice(lastIndex, re.lastIndex - match[0].length);
+    if(content.length){
+      tokens.push(content);
+    }
+    if(parseDelim){
+      var parsed = parseDelim.apply(instance, match.slice(1).concat(tokens.length));
+      if(typeof parsed != 'undefined'){
+        if(parsed.specifier === '%'){
+          tokens.push('%');
+        }else{
+          tokens.push(parsed);
+        }
+      }
+    }
+    lastIndex = re.lastIndex;
+  }
+  content = str.slice(lastIndex);
+  if(content.length){
+    tokens.push(content);
+  }
+  return tokens;
+};
+
+var Formatter = function(/*String*/ format){
+  this._mapped = false;
+  this._format = format;
+  this._tokens = tokenize(format, this._re, this._parseDelim, this);
+};
+
+Formatter.prototype._re = /\%(?:\(([\w_.]+)\)|([1-9]\d*)\$)?([0 +\-\#]*)(\*|\d+)?(\.)?(\*|\d+)?[hlL]?([\%bscdeEfFgGioOuxX])/g;
+Formatter.prototype._parseDelim = function(mapping, intmapping, flags, minWidth, period, precision, specifier){
+  if(mapping){
+    this._mapped = true;
+  }
+  return {
+    mapping: mapping,
+    intmapping: intmapping,
+    flags: flags,
+    _minWidth: minWidth, // May be dependent on parameters
+    period: period,
+    _precision: precision, // May be dependent on parameters
+    specifier: specifier
+  };
+};
+Formatter.prototype._specifiers = {
+  b: {
+    base: 2,
+    isInt: true
+  },
+  o: {
+    base: 8,
+    isInt: true
+  },
+  x: {
+    base: 16,
+    isInt: true
+  },
+  X: {
+    extend: ['x'],
+    toUpper: true
+  },
+  d: {
+    base: 10,
+    isInt: true
+  },
+  i: {
+    extend: ['d']
+  },
+  u: {
+    extend: ['d'],
+    isUnsigned: true
+  },
+  c: {
+    setArg: function(token){
+      if(!isNaN(token.arg)){
+        var num = parseInt(token.arg);
+        if(num < 0 || num > 127){
+          throw new Error('invalid character code passed to %c in printf');
+        }
+        token.arg = isNaN(num) ? '' + num : String.fromCharCode(num);
+      }
+    }
+  },
+  s: {
+    setMaxWidth: function(token){
+      token.maxWidth = (token.period == '.') ? token.precision : -1;
+    }
+  },
+  e: {
+    isDouble: true,
+    doubleNotation: 'e'
+  },
+  E: {
+    extend: ['e'],
+    toUpper: true
+  },
+  f: {
+    isDouble: true,
+    doubleNotation: 'f'
+  },
+  F: {
+    extend: ['f']
+  },
+  g: {
+    isDouble: true,
+    doubleNotation: 'g'
+  },
+  G: {
+    extend: ['g'],
+    toUpper: true
+  },
+  O: {
+    isObject: true
+  }
+};
+Formatter.prototype.format = function(/*mixed...*/ filler){
+  if(this._mapped && typeof filler != 'object'){
+    throw new Error('format requires a mapping');
+  }
+
+  var str = '';
+  var position = 0;
+  for(var i = 0, token; i < this._tokens.length; i++){
+    token = this._tokens[i];
+
+    if(typeof token == 'string'){
+      str += token;
+    }else{
+      if(this._mapped){
+        // Identify value of property defined in `token.mapping`
+        var tokens = token.mapping.split('.');
+        var value = filler;
+        for (var j = 0, c = tokens.length; j < c; j++) {
+          value = value[tokens[j]];
+          if (typeof value === 'undefined') {
+            break
+          }
+        }
+        if(typeof value == 'undefined'){
+          throw new Error('missing key ' + token.mapping);
+        }
+        token.arg = value;
+      }else{
+        if(token.intmapping){
+          position = parseInt(token.intmapping) - 1;
+        }
+        if(position >= arguments.length){
+          throw new Error('got ' + arguments.length + ' printf arguments, insufficient for \'' + this._format + '\'');
+        }
+        token.arg = arguments[position++];
+      }
+
+      if(!token.compiled){
+        token.compiled = true;
+        token.sign = '';
+        token.zeroPad = false;
+        token.rightJustify = false;
+        token.alternative = false;
+
+        var flags = {};
+        for(var fi = token.flags.length; fi--;){
+          var flag = token.flags.charAt(fi);
+          flags[flag] = true;
+          switch(flag){
+            case ' ':
+              token.sign = ' ';
+              break;
+            case '+':
+              token.sign = '+';
+              break;
+            case '0':
+              token.zeroPad = (flags['-']) ? false : true;
+              break;
+            case '-':
+              token.rightJustify = true;
+              token.zeroPad = false;
+              break;
+            case '#':
+              token.alternative = true;
+              break;
+            default:
+              throw Error('bad formatting flag \'' + token.flags.charAt(fi) + '\'');
+          }
+        }
+
+        token.minWidth = (token._minWidth) ? parseInt(token._minWidth) : 0;
+        token.maxWidth = -1;
+        token.toUpper = false;
+        token.isUnsigned = false;
+        token.isInt = false;
+        token.isDouble = false;
+        token.isObject = false;
+        token.precision = 1;
+        if(token.period == '.'){
+          if(token._precision){
+            token.precision = parseInt(token._precision);
+          }else{
+            token.precision = 0;
+          }
+        }
+
+        var mixins = this._specifiers[token.specifier];
+        if(typeof mixins == 'undefined'){
+          throw new Error('unexpected specifier \'' + token.specifier + '\'');
+        }
+        if(mixins.extend){
+          var s = this._specifiers[mixins.extend];
+          for(var k in s){
+            mixins[k] = s[k];
+          }
+          delete mixins.extend;
+        }
+        for(var l in mixins){
+          token[l] = mixins[l];
+        }
+      }
+
+      if(typeof token.setArg == 'function'){
+        token.setArg(token);
+      }
+
+      if(typeof token.setMaxWidth == 'function'){
+        token.setMaxWidth(token);
+      }
+
+      if(token._minWidth == '*'){
+        if(this._mapped){
+          throw new Error('* width not supported in mapped formats');
+        }
+        token.minWidth = parseInt(arguments[position++]);
+        if(isNaN(token.minWidth)){
+          throw new Error('the argument for * width at position ' + position + ' is not a number in ' + this._format);
+        }
+        // negative width means rightJustify
+        if (token.minWidth < 0) {
+          token.rightJustify = true;
+          token.minWidth = -token.minWidth;
+        }
+      }
+
+      if(token._precision == '*' && token.period == '.'){
+        if(this._mapped){
+          throw new Error('* precision not supported in mapped formats');
+        }
+        token.precision = parseInt(arguments[position++]);
+        if(isNaN(token.precision)){
+          throw Error('the argument for * precision at position ' + position + ' is not a number in ' + this._format);
+        }
+        // negative precision means unspecified
+        if (token.precision < 0) {
+          token.precision = 1;
+          token.period = '';
+        }
+      }
+      if(token.isInt){
+        // a specified precision means no zero padding
+        if(token.period == '.'){
+          token.zeroPad = false;
+        }
+        this.formatInt(token);
+      }else if(token.isDouble){
+        if(token.period != '.'){
+          token.precision = 6;
+        }
+        this.formatDouble(token);
+      }else if(token.isObject){
+        this.formatObject(token);
+      }
+      this.fitField(token);
+
+      str += '' + token.arg;
+    }
+  }
+
+  return str;
+};
+Formatter.prototype._zeros10 = '0000000000';
+Formatter.prototype._spaces10 = '          ';
+Formatter.prototype.formatInt = function(token) {
+  var i = parseInt(token.arg);
+  if(!isFinite(i)){ // isNaN(f) || f == Number.POSITIVE_INFINITY || f == Number.NEGATIVE_INFINITY)
+    // allow this only if arg is number
+    if(typeof token.arg != 'number'){
+      throw new Error('format argument \'' + token.arg + '\' not an integer; parseInt returned ' + i);
+    }
+    //return '' + i;
+    i = 0;
+  }
+
+  // if not base 10, make negatives be positive
+  // otherwise, (-10).toString(16) is '-a' instead of 'fffffff6'
+  if(i < 0 && (token.isUnsigned || token.base != 10)){
+    i = 0xffffffff + i + 1;
+  }
+
+  if(i < 0){
+    token.arg = (- i).toString(token.base);
+    this.zeroPad(token);
+    token.arg = '-' + token.arg;
+  }else{
+    token.arg = i.toString(token.base);
+    // need to make sure that argument 0 with precision==0 is formatted as ''
+    if(!i && !token.precision){
+      token.arg = '';
+    }else{
+      this.zeroPad(token);
+    }
+    if(token.sign){
+      token.arg = token.sign + token.arg;
+    }
+  }
+  if(token.base == 16){
+    if(token.alternative){
+      token.arg = '0x' + token.arg;
+    }
+    token.arg = token.toUpper ? token.arg.toUpperCase() : token.arg.toLowerCase();
+  }
+  if(token.base == 8){
+    if(token.alternative && token.arg.charAt(0) != '0'){
+      token.arg = '0' + token.arg;
+    }
+  }
+};
+Formatter.prototype.formatDouble = function(token) {
+  var f = parseFloat(token.arg);
+  if(!isFinite(f)){ // isNaN(f) || f == Number.POSITIVE_INFINITY || f == Number.NEGATIVE_INFINITY)
+    // allow this only if arg is number
+    if(typeof token.arg != 'number'){
+      throw new Error('format argument \'' + token.arg + '\' not a float; parseFloat returned ' + f);
+    }
+    // C99 says that for 'f':
+    //   infinity -> '[-]inf' or '[-]infinity' ('[-]INF' or '[-]INFINITY' for 'F')
+    //   NaN -> a string  starting with 'nan' ('NAN' for 'F')
+    // this is not commonly implemented though.
+    //return '' + f;
+    f = 0;
+  }
+
+  switch(token.doubleNotation) {
+    case 'e': {
+      token.arg = f.toExponential(token.precision);
+      break;
+    }
+    case 'f': {
+      token.arg = f.toFixed(token.precision);
+      break;
+    }
+    case 'g': {
+      // C says use 'e' notation if exponent is < -4 or is >= prec
+      // ECMAScript for toPrecision says use exponential notation if exponent is >= prec,
+      // though step 17 of toPrecision indicates a test for < -6 to force exponential.
+      if(Math.abs(f) < 0.0001){
+        //print('forcing exponential notation for f=' + f);
+        token.arg = f.toExponential(token.precision > 0 ? token.precision - 1 : token.precision);
+      }else{
+        token.arg = f.toPrecision(token.precision);
+      }
+
+      // In C, unlike 'f', 'gG' removes trailing 0s from fractional part, unless alternative format flag ('#').
+      // But ECMAScript formats toPrecision as 0.00100000. So remove trailing 0s.
+      if(!token.alternative){
+        //print('replacing trailing 0 in \'' + s + '\'');
+        token.arg = token.arg.replace(/(\..*[^0])0*e/, '$1e');
+        // if fractional part is entirely 0, remove it and decimal point
+        token.arg = token.arg.replace(/\.0*e/, 'e').replace(/\.0$/,'');
+      }
+      break;
+    }
+    default: throw new Error('unexpected double notation \'' + token.doubleNotation + '\'');
+  }
+
+  // C says that exponent must have at least two digits.
+  // But ECMAScript does not; toExponential results in things like '1.000000e-8' and '1.000000e+8'.
+  // Note that s.replace(/e([\+\-])(\d)/, 'e$10$2') won't work because of the '$10' instead of '$1'.
+  // And replace(re, func) isn't supported on IE50 or Safari1.
+  token.arg = token.arg.replace(/e\+(\d)$/, 'e+0$1').replace(/e\-(\d)$/, 'e-0$1');
+
+  // if alt, ensure a decimal point
+  if(token.alternative){
+    token.arg = token.arg.replace(/^(\d+)$/,'$1.');
+    token.arg = token.arg.replace(/^(\d+)e/,'$1.e');
+  }
+
+  if(f >= 0 && token.sign){
+    token.arg = token.sign + token.arg;
+  }
+
+  token.arg = token.toUpper ? token.arg.toUpperCase() : token.arg.toLowerCase();
+};
+Formatter.prototype.formatObject = function(token) {
+  // If no precision is specified, then reset it to null (infinite depth).
+  var precision = (token.period === '.') ? token.precision : null;
+  // Historically, inspect was called with 3 options
+  // token.arg = util.inspect(token.arg, !token.alternative, precision, token.sign);
+  // Now using an object but not sure colors make any sense here
+  token.arg = util.inspect(token.arg, {
+    showHidden: !token.alternative,
+    depth: precision,
+    colors: token.sign,
+    compact: true
+  });
+};
+Formatter.prototype.zeroPad = function(token, /*Int*/ length) {
+  length = (arguments.length == 2) ? length : token.precision;
+  var negative = false;
+  if(typeof token.arg != "string"){
+    token.arg = "" + token.arg;
+  }
+  if (token.arg.substr(0,1) === '-') {
+    negative = true;
+    token.arg = token.arg.substr(1);
+  }
+
+  var tenless = length - 10;
+  while(token.arg.length < tenless){
+    token.arg = (token.rightJustify) ? token.arg + this._zeros10 : this._zeros10 + token.arg;
+  }
+  var pad = length - token.arg.length;
+  token.arg = (token.rightJustify) ? token.arg + this._zeros10.substring(0, pad) : this._zeros10.substring(0, pad) + token.arg;
+  if (negative) token.arg = '-' + token.arg;
+};
+Formatter.prototype.fitField = function(token) {
+  if(token.maxWidth >= 0 && token.arg.length > token.maxWidth){
+    return token.arg.substring(0, token.maxWidth);
+  }
+  if(token.zeroPad){
+    this.zeroPad(token, token.minWidth);
+    return;
+  }
+  this.spacePad(token);
+};
+Formatter.prototype.spacePad = function(token, /*Int*/ length) {
+  length = (arguments.length == 2) ? length : token.minWidth;
+  if(typeof token.arg != 'string'){
+    token.arg = '' + token.arg;
+  }
+  var tenless = length - 10;
+  while(token.arg.length < tenless){
+    token.arg = (token.rightJustify) ? token.arg + this._spaces10 : this._spaces10 + token.arg;
+  }
+  var pad = length - token.arg.length;
+  token.arg = (token.rightJustify) ? token.arg + this._spaces10.substring(0, pad) : this._spaces10.substring(0, pad) + token.arg;
+};
+
+
+module.exports = function(){
+  var args = Array.prototype.slice.call(arguments),
+    stream, format;
+  if(args[0] instanceof require('stream').Stream){
+    stream = args.shift();
+  }
+  format = args.shift();
+  var formatter = new Formatter(format);
+  var string = formatter.format.apply(formatter, args);
+  if(stream){
+    stream.write(string);
+  }else{
+    return string;
+  }
+};
+
+module.exports.Formatter = Formatter;
+
+},{"stream":30,"util":35}],4:[function(require,module,exports){
 'use strict'
 
 exports.byteLength = byteLength
@@ -477,9 +864,9 @@ function fromByteArray (uint8) {
   return parts.join('')
 }
 
-},{}],4:[function(require,module,exports){
-arguments[4][2][0].apply(exports,arguments)
-},{"dup":2}],5:[function(require,module,exports){
+},{}],5:[function(require,module,exports){
+
+},{}],6:[function(require,module,exports){
 (function (Buffer){
 /*!
  * The buffer module from node.js, for the browser.
@@ -2273,7 +2660,7 @@ function numberIsNaN (obj) {
 }
 
 }).call(this,require("buffer").Buffer)
-},{"base64-js":3,"buffer":5,"ieee754":8}],6:[function(require,module,exports){
+},{"base64-js":4,"buffer":6,"ieee754":9}],7:[function(require,module,exports){
 (function (Buffer){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -2384,7 +2771,7 @@ function objectToString(o) {
 }
 
 }).call(this,{"isBuffer":require("../../is-buffer/index.js")})
-},{"../../is-buffer/index.js":10}],7:[function(require,module,exports){
+},{"../../is-buffer/index.js":11}],8:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -2909,7 +3296,7 @@ function functionBindPolyfill(context) {
   };
 }
 
-},{}],8:[function(require,module,exports){
+},{}],9:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = (nBytes * 8) - mLen - 1
@@ -2995,7 +3382,7 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],9:[function(require,module,exports){
+},{}],10:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -3024,7 +3411,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],10:[function(require,module,exports){
+},{}],11:[function(require,module,exports){
 /*!
  * Determine if an object is a Buffer
  *
@@ -3047,14 +3434,14 @@ function isSlowBuffer (obj) {
   return typeof obj.readFloatLE === 'function' && typeof obj.slice === 'function' && isBuffer(obj.slice(0, 0))
 }
 
-},{}],11:[function(require,module,exports){
+},{}],12:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],12:[function(require,module,exports){
+},{}],13:[function(require,module,exports){
 (function (process){
 'use strict';
 
@@ -3103,7 +3490,7 @@ function nextTick(fn, arg1, arg2, arg3) {
 
 
 }).call(this,require('_process'))
-},{"_process":13}],13:[function(require,module,exports){
+},{"_process":14}],14:[function(require,module,exports){
 // shim for using process in browser
 var process = module.exports = {};
 
@@ -3289,10 +3676,10 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],14:[function(require,module,exports){
+},{}],15:[function(require,module,exports){
 module.exports = require('./lib/_stream_duplex.js');
 
-},{"./lib/_stream_duplex.js":15}],15:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":16}],16:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3424,7 +3811,7 @@ Duplex.prototype._destroy = function (err, cb) {
 
   pna.nextTick(cb, err);
 };
-},{"./_stream_readable":17,"./_stream_writable":19,"core-util-is":6,"inherits":9,"process-nextick-args":12}],16:[function(require,module,exports){
+},{"./_stream_readable":18,"./_stream_writable":20,"core-util-is":7,"inherits":10,"process-nextick-args":13}],17:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -3472,7 +3859,7 @@ function PassThrough(options) {
 PassThrough.prototype._transform = function (chunk, encoding, cb) {
   cb(null, chunk);
 };
-},{"./_stream_transform":18,"core-util-is":6,"inherits":9}],17:[function(require,module,exports){
+},{"./_stream_transform":19,"core-util-is":7,"inherits":10}],18:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4494,7 +4881,7 @@ function indexOf(xs, x) {
   return -1;
 }
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./_stream_duplex":15,"./internal/streams/BufferList":20,"./internal/streams/destroy":21,"./internal/streams/stream":22,"_process":13,"core-util-is":6,"events":7,"inherits":9,"isarray":11,"process-nextick-args":12,"safe-buffer":23,"string_decoder/":24,"util":4}],18:[function(require,module,exports){
+},{"./_stream_duplex":16,"./internal/streams/BufferList":21,"./internal/streams/destroy":22,"./internal/streams/stream":23,"_process":14,"core-util-is":7,"events":8,"inherits":10,"isarray":12,"process-nextick-args":13,"safe-buffer":24,"string_decoder/":25,"util":5}],19:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4709,7 +5096,7 @@ function done(stream, er, data) {
 
   return stream.push(null);
 }
-},{"./_stream_duplex":15,"core-util-is":6,"inherits":9}],19:[function(require,module,exports){
+},{"./_stream_duplex":16,"core-util-is":7,"inherits":10}],20:[function(require,module,exports){
 (function (process,global,setImmediate){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -5399,7 +5786,7 @@ Writable.prototype._destroy = function (err, cb) {
   cb(err);
 };
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {},require("timers").setImmediate)
-},{"./_stream_duplex":15,"./internal/streams/destroy":21,"./internal/streams/stream":22,"_process":13,"core-util-is":6,"inherits":9,"process-nextick-args":12,"safe-buffer":23,"timers":30,"util-deprecate":31}],20:[function(require,module,exports){
+},{"./_stream_duplex":16,"./internal/streams/destroy":22,"./internal/streams/stream":23,"_process":14,"core-util-is":7,"inherits":10,"process-nextick-args":13,"safe-buffer":24,"timers":31,"util-deprecate":32}],21:[function(require,module,exports){
 'use strict';
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
@@ -5479,7 +5866,7 @@ if (util && util.inspect && util.inspect.custom) {
     return this.constructor.name + ' ' + obj;
   };
 }
-},{"safe-buffer":23,"util":4}],21:[function(require,module,exports){
+},{"safe-buffer":24,"util":5}],22:[function(require,module,exports){
 'use strict';
 
 /*<replacement>*/
@@ -5554,10 +5941,10 @@ module.exports = {
   destroy: destroy,
   undestroy: undestroy
 };
-},{"process-nextick-args":12}],22:[function(require,module,exports){
+},{"process-nextick-args":13}],23:[function(require,module,exports){
 module.exports = require('events').EventEmitter;
 
-},{"events":7}],23:[function(require,module,exports){
+},{"events":8}],24:[function(require,module,exports){
 /* eslint-disable node/no-deprecated-api */
 var buffer = require('buffer')
 var Buffer = buffer.Buffer
@@ -5621,7 +6008,7 @@ SafeBuffer.allocUnsafeSlow = function (size) {
   return buffer.SlowBuffer(size)
 }
 
-},{"buffer":5}],24:[function(require,module,exports){
+},{"buffer":6}],25:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5918,10 +6305,10 @@ function simpleWrite(buf) {
 function simpleEnd(buf) {
   return buf && buf.length ? this.write(buf) : '';
 }
-},{"safe-buffer":23}],25:[function(require,module,exports){
+},{"safe-buffer":24}],26:[function(require,module,exports){
 module.exports = require('./readable').PassThrough
 
-},{"./readable":26}],26:[function(require,module,exports){
+},{"./readable":27}],27:[function(require,module,exports){
 exports = module.exports = require('./lib/_stream_readable.js');
 exports.Stream = exports;
 exports.Readable = exports;
@@ -5930,13 +6317,13 @@ exports.Duplex = require('./lib/_stream_duplex.js');
 exports.Transform = require('./lib/_stream_transform.js');
 exports.PassThrough = require('./lib/_stream_passthrough.js');
 
-},{"./lib/_stream_duplex.js":15,"./lib/_stream_passthrough.js":16,"./lib/_stream_readable.js":17,"./lib/_stream_transform.js":18,"./lib/_stream_writable.js":19}],27:[function(require,module,exports){
+},{"./lib/_stream_duplex.js":16,"./lib/_stream_passthrough.js":17,"./lib/_stream_readable.js":18,"./lib/_stream_transform.js":19,"./lib/_stream_writable.js":20}],28:[function(require,module,exports){
 module.exports = require('./readable').Transform
 
-},{"./readable":26}],28:[function(require,module,exports){
+},{"./readable":27}],29:[function(require,module,exports){
 module.exports = require('./lib/_stream_writable.js');
 
-},{"./lib/_stream_writable.js":19}],29:[function(require,module,exports){
+},{"./lib/_stream_writable.js":20}],30:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6065,7 +6452,7 @@ Stream.prototype.pipe = function(dest, options) {
   return dest;
 };
 
-},{"events":7,"inherits":9,"readable-stream/duplex.js":14,"readable-stream/passthrough.js":25,"readable-stream/readable.js":26,"readable-stream/transform.js":27,"readable-stream/writable.js":28}],30:[function(require,module,exports){
+},{"events":8,"inherits":10,"readable-stream/duplex.js":15,"readable-stream/passthrough.js":26,"readable-stream/readable.js":27,"readable-stream/transform.js":28,"readable-stream/writable.js":29}],31:[function(require,module,exports){
 (function (setImmediate,clearImmediate){
 var nextTick = require('process/browser.js').nextTick;
 var apply = Function.prototype.apply;
@@ -6144,7 +6531,7 @@ exports.clearImmediate = typeof clearImmediate === "function" ? clearImmediate :
   delete immediateIds[id];
 };
 }).call(this,require("timers").setImmediate,require("timers").clearImmediate)
-},{"process/browser.js":13,"timers":30}],31:[function(require,module,exports){
+},{"process/browser.js":14,"timers":31}],32:[function(require,module,exports){
 (function (global){
 
 /**
@@ -6215,7 +6602,7 @@ function config (name) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],32:[function(require,module,exports){
+},{}],33:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -6240,14 +6627,14 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],33:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],34:[function(require,module,exports){
+},{}],35:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6837,482 +7224,4 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":33,"_process":13,"inherits":32}],35:[function(require,module,exports){
-
-var util = require('util');
-
-var tokenize = function(/*String*/ str, /*RegExp*/ re, /*Function?*/ parseDelim, /*Object?*/ instance){
-  // summary:
-  //    Split a string by a regular expression with the ability to capture the delimeters
-  // parseDelim:
-  //    Each group (excluding the 0 group) is passed as a parameter. If the function returns
-  //    a value, it's added to the list of tokens.
-  // instance:
-  //    Used as the "this' instance when calling parseDelim
-  var tokens = [];
-  var match, content, lastIndex = 0;
-  while((match = re.exec(str))){
-    content = str.slice(lastIndex, re.lastIndex - match[0].length);
-    if(content.length){
-      tokens.push(content);
-    }
-    if(parseDelim){
-      var parsed = parseDelim.apply(instance, match.slice(1).concat(tokens.length));
-      if(typeof parsed != 'undefined'){
-        if(parsed.specifier === '%'){
-          tokens.push('%');
-        }else{
-          tokens.push(parsed);
-        }
-      }
-    }
-    lastIndex = re.lastIndex;
-  }
-  content = str.slice(lastIndex);
-  if(content.length){
-    tokens.push(content);
-  }
-  return tokens;
-};
-
-var Formatter = function(/*String*/ format){
-  this._mapped = false;
-  this._format = format;
-  this._tokens = tokenize(format, this._re, this._parseDelim, this);
-};
-
-Formatter.prototype._re = /\%(?:\(([\w_.]+)\)|([1-9]\d*)\$)?([0 +\-\#]*)(\*|\d+)?(\.)?(\*|\d+)?[hlL]?([\%bscdeEfFgGioOuxX])/g;
-Formatter.prototype._parseDelim = function(mapping, intmapping, flags, minWidth, period, precision, specifier){
-  if(mapping){
-    this._mapped = true;
-  }
-  return {
-    mapping: mapping,
-    intmapping: intmapping,
-    flags: flags,
-    _minWidth: minWidth, // May be dependent on parameters
-    period: period,
-    _precision: precision, // May be dependent on parameters
-    specifier: specifier
-  };
-};
-Formatter.prototype._specifiers = {
-  b: {
-    base: 2,
-    isInt: true
-  },
-  o: {
-    base: 8,
-    isInt: true
-  },
-  x: {
-    base: 16,
-    isInt: true
-  },
-  X: {
-    extend: ['x'],
-    toUpper: true
-  },
-  d: {
-    base: 10,
-    isInt: true
-  },
-  i: {
-    extend: ['d']
-  },
-  u: {
-    extend: ['d'],
-    isUnsigned: true
-  },
-  c: {
-    setArg: function(token){
-      if(!isNaN(token.arg)){
-        var num = parseInt(token.arg);
-        if(num < 0 || num > 127){
-          throw new Error('invalid character code passed to %c in printf');
-        }
-        token.arg = isNaN(num) ? '' + num : String.fromCharCode(num);
-      }
-    }
-  },
-  s: {
-    setMaxWidth: function(token){
-      token.maxWidth = (token.period == '.') ? token.precision : -1;
-    }
-  },
-  e: {
-    isDouble: true,
-    doubleNotation: 'e'
-  },
-  E: {
-    extend: ['e'],
-    toUpper: true
-  },
-  f: {
-    isDouble: true,
-    doubleNotation: 'f'
-  },
-  F: {
-    extend: ['f']
-  },
-  g: {
-    isDouble: true,
-    doubleNotation: 'g'
-  },
-  G: {
-    extend: ['g'],
-    toUpper: true
-  },
-  O: {
-    isObject: true
-  }
-};
-Formatter.prototype.format = function(/*mixed...*/ filler){
-  if(this._mapped && typeof filler != 'object'){
-    throw new Error('format requires a mapping');
-  }
-
-  var str = '';
-  var position = 0;
-  for(var i = 0, token; i < this._tokens.length; i++){
-    token = this._tokens[i];
-
-    if(typeof token == 'string'){
-      str += token;
-    }else{
-      if(this._mapped){
-        // Identify value of property defined in `token.mapping`
-        var tokens = token.mapping.split('.');
-        var value = filler;
-        for (var j = 0, c = tokens.length; j < c; j++) {
-          value = value[tokens[j]];
-          if (typeof value === 'undefined') {
-            break
-          }
-        }
-        if(typeof value == 'undefined'){
-          throw new Error('missing key ' + token.mapping);
-        }
-        token.arg = value;
-      }else{
-        if(token.intmapping){
-          position = parseInt(token.intmapping) - 1;
-        }
-        if(position >= arguments.length){
-          throw new Error('got ' + arguments.length + ' printf arguments, insufficient for \'' + this._format + '\'');
-        }
-        token.arg = arguments[position++];
-      }
-
-      if(!token.compiled){
-        token.compiled = true;
-        token.sign = '';
-        token.zeroPad = false;
-        token.rightJustify = false;
-        token.alternative = false;
-
-        var flags = {};
-        for(var fi = token.flags.length; fi--;){
-          var flag = token.flags.charAt(fi);
-          flags[flag] = true;
-          switch(flag){
-            case ' ':
-              token.sign = ' ';
-              break;
-            case '+':
-              token.sign = '+';
-              break;
-            case '0':
-              token.zeroPad = (flags['-']) ? false : true;
-              break;
-            case '-':
-              token.rightJustify = true;
-              token.zeroPad = false;
-              break;
-            case '#':
-              token.alternative = true;
-              break;
-            default:
-              throw Error('bad formatting flag \'' + token.flags.charAt(fi) + '\'');
-          }
-        }
-
-        token.minWidth = (token._minWidth) ? parseInt(token._minWidth) : 0;
-        token.maxWidth = -1;
-        token.toUpper = false;
-        token.isUnsigned = false;
-        token.isInt = false;
-        token.isDouble = false;
-        token.isObject = false;
-        token.precision = 1;
-        if(token.period == '.'){
-          if(token._precision){
-            token.precision = parseInt(token._precision);
-          }else{
-            token.precision = 0;
-          }
-        }
-
-        var mixins = this._specifiers[token.specifier];
-        if(typeof mixins == 'undefined'){
-          throw new Error('unexpected specifier \'' + token.specifier + '\'');
-        }
-        if(mixins.extend){
-          var s = this._specifiers[mixins.extend];
-          for(var k in s){
-            mixins[k] = s[k];
-          }
-          delete mixins.extend;
-        }
-        for(var l in mixins){
-          token[l] = mixins[l];
-        }
-      }
-
-      if(typeof token.setArg == 'function'){
-        token.setArg(token);
-      }
-
-      if(typeof token.setMaxWidth == 'function'){
-        token.setMaxWidth(token);
-      }
-
-      if(token._minWidth == '*'){
-        if(this._mapped){
-          throw new Error('* width not supported in mapped formats');
-        }
-        token.minWidth = parseInt(arguments[position++]);
-        if(isNaN(token.minWidth)){
-          throw new Error('the argument for * width at position ' + position + ' is not a number in ' + this._format);
-        }
-        // negative width means rightJustify
-        if (token.minWidth < 0) {
-          token.rightJustify = true;
-          token.minWidth = -token.minWidth;
-        }
-      }
-
-      if(token._precision == '*' && token.period == '.'){
-        if(this._mapped){
-          throw new Error('* precision not supported in mapped formats');
-        }
-        token.precision = parseInt(arguments[position++]);
-        if(isNaN(token.precision)){
-          throw Error('the argument for * precision at position ' + position + ' is not a number in ' + this._format);
-        }
-        // negative precision means unspecified
-        if (token.precision < 0) {
-          token.precision = 1;
-          token.period = '';
-        }
-      }
-      if(token.isInt){
-        // a specified precision means no zero padding
-        if(token.period == '.'){
-          token.zeroPad = false;
-        }
-        this.formatInt(token);
-      }else if(token.isDouble){
-        if(token.period != '.'){
-          token.precision = 6;
-        }
-        this.formatDouble(token);
-      }else if(token.isObject){
-        this.formatObject(token);
-      }
-      this.fitField(token);
-
-      str += '' + token.arg;
-    }
-  }
-
-  return str;
-};
-Formatter.prototype._zeros10 = '0000000000';
-Formatter.prototype._spaces10 = '          ';
-Formatter.prototype.formatInt = function(token) {
-  var i = parseInt(token.arg);
-  if(!isFinite(i)){ // isNaN(f) || f == Number.POSITIVE_INFINITY || f == Number.NEGATIVE_INFINITY)
-    // allow this only if arg is number
-    if(typeof token.arg != 'number'){
-      throw new Error('format argument \'' + token.arg + '\' not an integer; parseInt returned ' + i);
-    }
-    //return '' + i;
-    i = 0;
-  }
-
-  // if not base 10, make negatives be positive
-  // otherwise, (-10).toString(16) is '-a' instead of 'fffffff6'
-  if(i < 0 && (token.isUnsigned || token.base != 10)){
-    i = 0xffffffff + i + 1;
-  }
-
-  if(i < 0){
-    token.arg = (- i).toString(token.base);
-    this.zeroPad(token);
-    token.arg = '-' + token.arg;
-  }else{
-    token.arg = i.toString(token.base);
-    // need to make sure that argument 0 with precision==0 is formatted as ''
-    if(!i && !token.precision){
-      token.arg = '';
-    }else{
-      this.zeroPad(token);
-    }
-    if(token.sign){
-      token.arg = token.sign + token.arg;
-    }
-  }
-  if(token.base == 16){
-    if(token.alternative){
-      token.arg = '0x' + token.arg;
-    }
-    token.arg = token.toUpper ? token.arg.toUpperCase() : token.arg.toLowerCase();
-  }
-  if(token.base == 8){
-    if(token.alternative && token.arg.charAt(0) != '0'){
-      token.arg = '0' + token.arg;
-    }
-  }
-};
-Formatter.prototype.formatDouble = function(token) {
-  var f = parseFloat(token.arg);
-  if(!isFinite(f)){ // isNaN(f) || f == Number.POSITIVE_INFINITY || f == Number.NEGATIVE_INFINITY)
-    // allow this only if arg is number
-    if(typeof token.arg != 'number'){
-      throw new Error('format argument \'' + token.arg + '\' not a float; parseFloat returned ' + f);
-    }
-    // C99 says that for 'f':
-    //   infinity -> '[-]inf' or '[-]infinity' ('[-]INF' or '[-]INFINITY' for 'F')
-    //   NaN -> a string  starting with 'nan' ('NAN' for 'F')
-    // this is not commonly implemented though.
-    //return '' + f;
-    f = 0;
-  }
-
-  switch(token.doubleNotation) {
-    case 'e': {
-      token.arg = f.toExponential(token.precision);
-      break;
-    }
-    case 'f': {
-      token.arg = f.toFixed(token.precision);
-      break;
-    }
-    case 'g': {
-      // C says use 'e' notation if exponent is < -4 or is >= prec
-      // ECMAScript for toPrecision says use exponential notation if exponent is >= prec,
-      // though step 17 of toPrecision indicates a test for < -6 to force exponential.
-      if(Math.abs(f) < 0.0001){
-        //print('forcing exponential notation for f=' + f);
-        token.arg = f.toExponential(token.precision > 0 ? token.precision - 1 : token.precision);
-      }else{
-        token.arg = f.toPrecision(token.precision);
-      }
-
-      // In C, unlike 'f', 'gG' removes trailing 0s from fractional part, unless alternative format flag ('#').
-      // But ECMAScript formats toPrecision as 0.00100000. So remove trailing 0s.
-      if(!token.alternative){
-        //print('replacing trailing 0 in \'' + s + '\'');
-        token.arg = token.arg.replace(/(\..*[^0])0*e/, '$1e');
-        // if fractional part is entirely 0, remove it and decimal point
-        token.arg = token.arg.replace(/\.0*e/, 'e').replace(/\.0$/,'');
-      }
-      break;
-    }
-    default: throw new Error('unexpected double notation \'' + token.doubleNotation + '\'');
-  }
-
-  // C says that exponent must have at least two digits.
-  // But ECMAScript does not; toExponential results in things like '1.000000e-8' and '1.000000e+8'.
-  // Note that s.replace(/e([\+\-])(\d)/, 'e$10$2') won't work because of the '$10' instead of '$1'.
-  // And replace(re, func) isn't supported on IE50 or Safari1.
-  token.arg = token.arg.replace(/e\+(\d)$/, 'e+0$1').replace(/e\-(\d)$/, 'e-0$1');
-
-  // if alt, ensure a decimal point
-  if(token.alternative){
-    token.arg = token.arg.replace(/^(\d+)$/,'$1.');
-    token.arg = token.arg.replace(/^(\d+)e/,'$1.e');
-  }
-
-  if(f >= 0 && token.sign){
-    token.arg = token.sign + token.arg;
-  }
-
-  token.arg = token.toUpper ? token.arg.toUpperCase() : token.arg.toLowerCase();
-};
-Formatter.prototype.formatObject = function(token) {
-  // If no precision is specified, then reset it to null (infinite depth).
-  var precision = (token.period === '.') ? token.precision : null;
-  // Historically, inspect was called with 3 options
-  // token.arg = util.inspect(token.arg, !token.alternative, precision, token.sign);
-  // Now using an object but not sure colors make any sense here
-  token.arg = util.inspect(token.arg, {
-    showHidden: !token.alternative,
-    depth: precision,
-    colors: token.sign,
-    compact: true
-  });
-};
-Formatter.prototype.zeroPad = function(token, /*Int*/ length) {
-  length = (arguments.length == 2) ? length : token.precision;
-  var negative = false;
-  if(typeof token.arg != "string"){
-    token.arg = "" + token.arg;
-  }
-  if (token.arg.substr(0,1) === '-') {
-    negative = true;
-    token.arg = token.arg.substr(1);
-  }
-
-  var tenless = length - 10;
-  while(token.arg.length < tenless){
-    token.arg = (token.rightJustify) ? token.arg + this._zeros10 : this._zeros10 + token.arg;
-  }
-  var pad = length - token.arg.length;
-  token.arg = (token.rightJustify) ? token.arg + this._zeros10.substring(0, pad) : this._zeros10.substring(0, pad) + token.arg;
-  if (negative) token.arg = '-' + token.arg;
-};
-Formatter.prototype.fitField = function(token) {
-  if(token.maxWidth >= 0 && token.arg.length > token.maxWidth){
-    return token.arg.substring(0, token.maxWidth);
-  }
-  if(token.zeroPad){
-    this.zeroPad(token, token.minWidth);
-    return;
-  }
-  this.spacePad(token);
-};
-Formatter.prototype.spacePad = function(token, /*Int*/ length) {
-  length = (arguments.length == 2) ? length : token.minWidth;
-  if(typeof token.arg != 'string'){
-    token.arg = '' + token.arg;
-  }
-  var tenless = length - 10;
-  while(token.arg.length < tenless){
-    token.arg = (token.rightJustify) ? token.arg + this._spaces10 : this._spaces10 + token.arg;
-  }
-  var pad = length - token.arg.length;
-  token.arg = (token.rightJustify) ? token.arg + this._spaces10.substring(0, pad) : this._spaces10.substring(0, pad) + token.arg;
-};
-
-
-module.exports = function(){
-  var args = Array.prototype.slice.call(arguments),
-    stream, format;
-  if(args[0] instanceof require('stream').Stream){
-    stream = args.shift();
-  }
-  format = args.shift();
-  var formatter = new Formatter(format);
-  var string = formatter.format.apply(formatter, args);
-  if(stream){
-    stream.write(string);
-  }else{
-    return string;
-  }
-};
-
-module.exports.Formatter = Formatter;
-
-},{"stream":29,"util":34}]},{},[1]);
+},{"./support/isBuffer":34,"_process":14,"inherits":33}]},{},[2]);
