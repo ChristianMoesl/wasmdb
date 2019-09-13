@@ -1,0 +1,36 @@
+{
+  "name": "sql-on-csv",
+  "version": "1.0.0",
+  "description": "",
+  "main": "bundle.js",
+  "dependencies": {
+    "@types/jquery": "^3.3.31",
+    "@types/node": "^12.7.5",
+    "jquery": "^3.4.1",
+    "printf": "^0.5.2"
+  },
+  "devDependencies": {
+    "browserify": "^16.5.0",
+    "node-sass": "^4.12.0",
+    "tsify": "^4.0.1",
+    "typescript": "^3.6.3",
+    "watchify": "^3.11.1"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npm run-script tsc && npm run-script scss && npm run-script html",
+    "html": "cp app/index.html dist/index.html",
+    "tsc": "browserify app/scripts/main.ts -p [ tsify --noImplicitAny ] > dist/assets/bundle.js",
+    "scss": "node-sass app/styles/styles.scss -o dist/assets"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ChristianMoesl/sql-on-csv.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/ChristianMoesl/sql-on-csv/issues"
+  },
+  "homepage": "https://github.com/ChristianMoesl/sql-on-csv#readme"
+}
