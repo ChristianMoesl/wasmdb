@@ -1,3 +1,4 @@
+## Compile WASM binary tools for AWS Lambda
 ```
 git clone https://github.com/WebAssembly/wabt
 cd wabt
