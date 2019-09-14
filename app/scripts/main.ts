@@ -1,66 +1,57 @@
-import { run, files, setOnPrintListener } from "./wasm"
 import { log, appendResultFragment } from "./gui"
+import {
+  WorkerResponse,
+  WorkerRequest,
+  CmdError
+} from "./worker"
+
+const work = require('webworkify');
+
+let w: Worker = work(require('./worker'));
+
+function handle(response: WorkerResponse) {
+  switch (response.command) {
+    case "filesLoaded": resolveResponse(response.answers, response.files); break
+    case "finishedExecution": resolveResponse(response.answers); break
+    case "log": log(response.msg); break
+    case "print": appendResultFragment(response.msg); break
+    case "error": rejectResponse(response); break
+  }
+}
+
+w.addEventListener('message', (event: any) => handle(<WorkerResponse>event.data));
+
+function rejectResponse(error: CmdError) {
+  commandResolvers.delete(error.answers)
+  const rejector = commandRejectors.get(error.answers)
+  commandRejectors.delete(error.answers)
+
+  rejector(error.msg)
+}
+
+function resolveResponse(answers: string, data?: any) {
+  commandRejectors.delete(answers)
+  const resolve = commandResolvers.get(answers)
+  commandResolvers.delete(answers)
+
+  resolve(data)
+}
+
+const commandResolvers = new Map<string, any>()
+const commandRejectors = new Map<string, any>()
+
+async function sendRequestWithExpectedResponse<T>(request: WorkerRequest, expectedResponse: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    w.postMessage(request)
+    commandResolvers.set(request.command, resolve)
+    commandRejectors.set(request.command, reject)
+  })
+}
 
 export async function executeQuery(query: string) {
-  log(`sending SQL query to server`)
-  const response = await fetch(`https://p9xas8x1u8.execute-api.us-east-2.amazonaws.com/test/javatest?query=${encodeURIComponent(query)}`, {
-    headers: {
-      'Accept': 'application/wasm'
-    }
-  })
-
-  log(`received WASM binary`)
-  const binary = Buffer.from(await response.text(), 'base64');
-
-  log(`execute WASM binary`)
-  await run(binary);
-
-  log(`finished execution`)
-  flushOutputBuffer();
+  return sendRequestWithExpectedResponse<any>({ command: "executeQuery", query }, "finishedExecution")
 }
 
 export async function loadFiles(fileHandles: FileList) {
-  return new Promise<FileList>((resolve, reject) => {
-    files.clear()
-
-    for (var i = 0, f; f = fileHandles[i]; i++) {
-      const file = f;
-
-      log(`loading ${file.name} into memory`);
-
-      const reader = new FileReader();
-      reader.onload = event => {
-        files.set(file.name, <ArrayBuffer>event.target!.result);
-
-        log(`finished loading ${file.name}`);
-
-        if (files.size === fileHandles.length)
-          resolve(fileHandles)
-      };
-      reader.onabort = e => reject(e)
-      reader.onerror = e => reject(e)
-      reader.readAsArrayBuffer(file);
-    }
-  })
+  return sendRequestWithExpectedResponse<FileList>({ command: "loadFiles", files: fileHandles }, "filesLoaded")
 }
-
-const fragmentSize = 100;
-let output = new Array<string>();
-
-function parseData(s: string) {
-  if (output.length >= fragmentSize && s === "\n")
-    flushOutputBuffer()
-  else
-    output.push(s);
-}
-
-setOnPrintListener(parseData);
-
-function flushOutputBuffer() {
-  appendResultFragment(output.join(""))
-
-  output = new Array<string>()
-}
-
-
-

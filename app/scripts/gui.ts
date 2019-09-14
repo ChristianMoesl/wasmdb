@@ -94,7 +94,8 @@ document.getElementById('files')!.addEventListener('change', async (event: any) 
 
     const list = document.createElement("ul");
 
-    for (const file of loadedFiles) {
+    for (let i = 0, f; f = loadedFiles[i]; i++) {
+      const file = f
       const entry = document.createElement("li")!
       entry.innerHTML = `<strong>${escape(file.name)}</strong>(${file.type || "n/a"}) - ${file.size} bytes`
 

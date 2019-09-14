@@ -114,7 +114,7 @@ function fetchFile(name: number) {
   const file = files.get(str(name));
 
   if (file === undefined)
-    error("file has to be prefetched in browser");
+    error(`${str(name)} has to be prefetched in browser`);
 
   const fileBuffer = new Uint8Array(<ArrayBuffer>file);
 
