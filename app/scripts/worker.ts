@@ -89,7 +89,7 @@ module.exports = function (self: any) {
     })
   }
 
-  const fragmentSize = 100;
+  const fragmentSize = 1000;
   let output = new Array<string>();
 
   function parseData(s: string) {
