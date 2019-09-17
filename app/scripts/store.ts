@@ -11,7 +11,7 @@ export type State = {
   logMessages: List<{ date: string, msg: string }>,
   resultFragments: List<string>,
   logUpdated: boolean,
-  wasmStatus: WasmStatus
+  engineStatus: EngineStatus
 }
 
 const initialState: State = ({
@@ -20,7 +20,7 @@ const initialState: State = ({
   logMessages: List<{ date: string, msg: string }>(),
   resultFragments: List<string>(),
   logUpdated: false,
-  wasmStatus: "idle"
+  engineStatus: "idle"
 })
 
 // Actions
@@ -40,9 +40,9 @@ export function appendLog(msg: string) {
   }
 }
 
-export type WasmStatus = "fileLoading" | "executing" | "idle"
-export type SetWasmStatusAction = { type: "SET_WASM_STATUS", status: WasmStatus }
-export function setWasmStatus(status: WasmStatus) { return { type: "SET_WASM_STATUS", status } }
+export type EngineStatus = "fileLoading" | "savingFile" | "executing" | "idle"
+export type SetEngineStatusAction = { type: "SET_ENGINE_STATUS", status: EngineStatus }
+export function setEngineStatus(status: EngineStatus) { return { type: "SET_ENGINE_STATUS", status } }
 
 export type ResetLogUpdatedAction = { type: "RESET_LOG_UPDATED" }
 export function resetLogUpdated() { return { type: "RESET_LOG_UPDATED" } }
@@ -56,7 +56,7 @@ export function printResult(result: List<string>) { return { type: "PRINT_RESULT
 export type UpdateFilesLoadedAction = { type: "UPDATE_FILES_LOADED", filesLoaded: Array<File> }
 export function updateFilesLoaded(filesLoaded: Array<File>) { return { type: "UPDATE_FILES_LOADED", filesLoaded }}
 
-type Action = SetWasmStatusAction
+type Action = SetEngineStatusAction
             | PrintResultAction
             | ChangeQueryAction
             | AppendLogAction
@@ -66,9 +66,9 @@ type Action = SetWasmStatusAction
 // Reducer
 export function reducer(state = initialState, action: Action): State {
   switch (action.type) {
-    case "SET_WASM_STATUS":
+    case "SET_ENGINE_STATUS":
       return (action.status === "executing") ?
-        { ...state, wasmStatus: action.status, resultFragments: List() } : { ...state, wasmStatus: action.status }
+        { ...state, engineStatus: action.status, resultFragments: List() } : { ...state, engineStatus: action.status }
     case "CHANGE_QUERY": return { ...state, query: action.query }
     case "UPDATE_FILES_LOADED": return { ...state, filesLoaded: action.filesLoaded }
     case "APPEND_LOG": return { ...state, logMessages: state.logMessages.push(action.msg), logUpdated: true }

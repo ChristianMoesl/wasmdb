@@ -1,11 +1,10 @@
 import * as React from "react";
 import { connect } from "react-redux"
 import { withRouter } from "react-router-dom"
-import { FixedSizeList, VariableSizeList } from "react-window";
+import { VariableSizeList } from "react-window";
 
 import { engine } from "./engine";
 import { State as StoreState, changeQuery, appendLog, resetLogUpdated } from "./store"
-
 
 type ToolActions = {
   changeQuery: (query: string) => void,
@@ -26,6 +25,7 @@ class Tool extends React.Component<ToolProps> {
   }
 
   handleFileSelect(fileList: FileList) {
+    console.log("im here")
     engine.loadFiles(fileList)
   }
 
@@ -35,6 +35,10 @@ class Tool extends React.Component<ToolProps> {
 
   resetClicked() {
     engine.reset()
+  }
+
+  saveClicked() {
+    engine.saveResult("result.csv")
   }
 
   calculateRowHeight(idx: number) {
@@ -57,7 +61,7 @@ class Tool extends React.Component<ToolProps> {
             <label id="load-button" className="btn my-button btn-file">
                 Choose Files <input type="file" id="files" name="files[]"
                               onChange={ (e: any) => this.handleFileSelect(e.target.files)}
-                              disabled={this.props.wasmStatus !== "idle"}
+                              disabled={this.props.engineStatus !== "idle"}
                               multiple accept="text/csv" style={{ display: "none" }} />
             </label>
           </div>
@@ -71,17 +75,28 @@ class Tool extends React.Component<ToolProps> {
           <textarea name="textarea" id="query" value={this.props.query}
                     onChange={(e: any) => this.handleQueryChange(e.target.value)}
                     className="code form-control"></textarea>
-          <div className="d-flex justify-content-left">
-            <button id="process-button" className="btn my-button" type="button"
-                    disabled={this.props.wasmStatus !== "idle"}
-                    onClick={ (e: any) => this.executeClicked() }  >Process</button>
+          <div className="row">
+            <div className="col-6 d-flex justify-content-start">
+              <button id="process-button" className="btn my-button" type="button"
+                      disabled={this.props.engineStatus !== "idle"}
+                      onClick={ (e: any) => this.executeClicked() }  >Process</button>
+              <button className="btn my-abort-button" type="button"
+                      onClick={ (e: any) => this.resetClicked() }>Reset</button>
+            </div>
           </div>
-          <button className="btn my-button" type="button"
-                  onClick={ (e: any) => this.resetClicked() }>Reset</button>
+
         </section>
 
         <section id="result-section">
-          <h4>Results</h4>
+          <div className="row">
+            <div className="col-6"><h3>Results</h3></div>
+            <div className="col-6 d-flex justify-content-end">
+              <button className="btn my-button" type="button"
+                      disabled={this.props.engineStatus !== "idle" || this.props.resultFragments.size === 0}
+                      onClick={ (e: any) => this.saveClicked() }>Save</button>
+            </div>
+          </div>
+
           <figure className="highlight">
             <VariableSizeList
             className="List"
@@ -110,7 +125,7 @@ function mapStateToProps(state: { store: StoreState }): StoreState {
     logMessages: state.store.logMessages,
     resultFragments: state.store.resultFragments,
     logUpdated: state.store.logUpdated,
-    wasmStatus: state.store.wasmStatus
+    engineStatus: state.store.engineStatus
   }
 }
 

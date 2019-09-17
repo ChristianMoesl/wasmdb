@@ -38,6 +38,7 @@ class Internals extends Component<InternalsProps> {
 
   render() {
     return (
+    <div className="container">
       <section id="log-section">
           <h4>Execution Log</h4>
           <figure className="highlight">
@@ -57,6 +58,7 @@ class Internals extends Component<InternalsProps> {
             </FixedSizeList>
           </figure>
         </section>
+      </div>
     )
   }
 }

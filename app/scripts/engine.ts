@@ -1,4 +1,4 @@
-import { store, updateFilesLoaded, printResult, appendLog, setWasmStatus } from "./store"
+import { store, updateFilesLoaded, printResult, appendLog, setEngineStatus } from "./store"
 import { List } from "immutable"
 import { batch } from "react-redux"
 
@@ -8,6 +8,7 @@ import {
   CmdError
 } from "./worker"
 
+const streamSaver =  require("streamsaver")
 const work = require('webworkify')
 const workerModule = require('./worker')
 
@@ -50,7 +51,7 @@ class Engine {
         break
       case "error":
         batch(() => {
-          store.dispatch(setWasmStatus("idle"))
+          store.dispatch(setEngineStatus("idle"))
           store.dispatch(appendLog(response.msg))
         })
         this.rejectResponse(response)
@@ -89,11 +90,11 @@ class Engine {
     this.nextStoreUpdate = 1
 
     try {
-      store.dispatch(setWasmStatus("executing"))
+      store.dispatch(setEngineStatus("executing"))
 
       await this.sendRequestWithExpectedResponse<any>({ command: "executeQuery", query }, "finishedExecution")
 
-      store.dispatch(setWasmStatus("idle"))
+      store.dispatch(setEngineStatus("idle"))
     } catch (e) { }
   }
 
@@ -105,23 +106,56 @@ class Engine {
       store.dispatch(appendLog("free files in memory"))
       store.dispatch(updateFilesLoaded([]))
       store.dispatch(appendLog("terminating query executor"))
-      store.dispatch(setWasmStatus("idle"))
+      store.dispatch(setEngineStatus("idle"))
     })
   }
 
   async loadFiles(fileHandles: FileList) {
-    store.dispatch(setWasmStatus("fileLoading"))
+    if (fileHandles.length === 0) return
+
+    store.dispatch(setEngineStatus("fileLoading"))
 
     try {
       const files = await this.sendRequestWithExpectedResponse<FileList>({ command: "loadFiles", files: fileHandles }, "filesLoaded")
 
       batch(() => {
-        store.dispatch(setWasmStatus("idle"))
+        store.dispatch(setEngineStatus("idle"))
         store.dispatch(updateFilesLoaded([...<any>files]))
       })
     } catch (e) {
-      store.dispatch(updateFilesLoaded([]))
+      batch(() => {
+        store.dispatch(setEngineStatus("idle"))
+        store.dispatch(updateFilesLoaded([]))
+      })
     }
+  }
+
+  saveResult(fileName: string) {
+    store.dispatch(setEngineStatus("savingFile"))
+
+    const blob = new Blob(store.getState().store.resultFragments.toJS())
+    const fileStream = streamSaver.createWriteStream(fileName, {
+      size: blob.size // Makes the procentage visiable in the download
+    })
+
+    // @ts-ignore
+    const readableStream = blob.stream()
+
+    // @ts-ignore
+    window.writer = fileStream.getWriter()
+    const reader = readableStream.getReader()
+
+    function cleanUp(writer: any) {
+      writer.close()
+
+      store.dispatch(setEngineStatus("idle"))
+    }
+
+    const pump = () => reader.read().then((res: any) =>
+      // @ts-ignore
+      res.done ? cleanUp(writer) : writer.write(res.value).then(pump))
+
+    pump()
   }
 }
 
