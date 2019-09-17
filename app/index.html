@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="eng">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 <title>SQL on CSV</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Raleway:400,300,600" type="text/css">
@@ -10,59 +11,7 @@
 <link rel="stylesheet" type="text/css" href="assets/styles.css">
 </head>
 <body>
-  <header class="site-header" role="banner">
-    <div class="wrapper">
-      <a class="site-title">SQL on CSV</a>
-    </div>
-  </header>
-  <main>
-  <div class="container">
-    <section id="file-section">
-      <h3>1. Select CSV files as data source</h3>
-      <div class="d-flex justify-content-left">
-        <label id="load-button" class="btn my-button btn-file">
-            Choose Files <input type="file" id="files" name="files[]" multiple accept="text/csv" style="display: none;" />
-        </label>
-        <div id="load-button-spinner" class="spinner-border hidden" role="status">
-          <span class="sr-only">Loading...</span>
-        </div>
-      </div>
-      <output id="list"></output>
-    </section>
-
-    <section id="query-section">
-      <h3>2. Write SQL query</h3>
-      <textarea name="textarea" id="query" class="code form-control"></textarea>
-      <div class="d-flex justify-content-left">
-        <button id="process-button" type="button" class="btn my-button">Process</button>
-        <div id="process-button-spinner" class="spinner-border hidden" role="status">
-          <span class="sr-only">Loading...</span>
-        </div>
-      </div>
-    </section>
-
-    <section id="log-section">
-      <h4>Execution Log</h4>
-      <figure class="highlight">
-        <div id="logView"></div>
-      </figure>
-    </section>
-
-    <section id="result-section">
-      <h4>Results</h4>
-      <figure class="highlight">
-        <div id="results" style="width:100%"></div>
-      </figure>
-    </section>
-
-  </main>
-  <footer class="site-footer">
-    <div class="wrapper">
-      <div class="d-flex justify-content-center">
-        <span>Copyright Purdue University</span>
-      </div>
-    </div>
-  </footer>
+<div id="main"></div>
 </body>
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
