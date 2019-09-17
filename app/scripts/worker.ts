@@ -46,7 +46,7 @@ module.exports = function (self: any) {
   async function executeQuery(query: string) {
     try {
       log(`sending SQL query to server`)
-      const response = await fetch(`https://p9xas8x1u8.execute-api.us-east-2.amazonaws.com/test/javatest?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(`https://api.wasmdb.christianmoesl.com?query=${encodeURIComponent(query)}`, {
         headers: {
           'Accept': 'application/wasm'
         }
