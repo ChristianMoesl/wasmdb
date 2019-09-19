@@ -1,5 +1,5 @@
 {
-  "name": "sql-on-csv",
+  "name": "wasmdb",
   "version": "1.0.0",
   "description": "",
   "main": "bundle.js",
@@ -60,12 +60,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ChristianMoesl/sql-on-csv.git"
+    "url": "git+https://github.com/ChristianMoesl/wasmdb.git"
   },
   "author": "",
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/ChristianMoesl/sql-on-csv/issues"
+    "url": "https://github.com/ChristianMoesl/wasmdb/issues"
   },
-  "homepage": "https://github.com/ChristianMoesl/sql-on-csv#readme"
+  "homepage": "https://github.com/ChristianMoesl/wasmdb#readme"
 }
