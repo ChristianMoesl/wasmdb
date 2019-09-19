@@ -23,7 +23,7 @@ jobs:
         CI: true
     - name: Deploy to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@2.0.0
-      if: github.ref == 'master' job.status == 'success'
+      if: github.ref == 'master' && job.status == 'success'
       env:
         ACCESS_TOKEN: ${{ secrets.PAT }}
         BASE_BRANCH: master
