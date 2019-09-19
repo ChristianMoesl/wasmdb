@@ -4,22 +4,16 @@ on: [push]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [12.x]
-
     steps:
     - uses: actions/checkout@v1
       with:
         token: ${{ secrets.PAT }}
         submodules: true
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js 12.x
       uses: actions/setup-node@v1
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 12.x
     - name: npm install, build, and test
       run: |
         npm install
@@ -27,3 +21,13 @@ jobs:
         npm test
       env:
         CI: true
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@2.0.0
+      if: github.ref == 'master' job.status == 'success'
+      env:
+        ACCESS_TOKEN: ${{ secrets.PAT }}
+        BASE_BRANCH: master
+        BRANCH: gh-pages
+        FOLDER: dist
+        BUILD_SCRIPT: npm install && npm run-script build-prod
+        COMMIT_EMAIL: christian.moesl@live.at
