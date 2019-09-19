@@ -3,7 +3,7 @@ name: Node CI
 on: [push]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
@@ -23,7 +23,7 @@ jobs:
         CI: true
     - name: Deploy to GitHub Pages
       uses: JamesIves/github-pages-deploy-action@2.0.0
-      if: github.ref == 'master' && job.status == 'success'
+      if: github.ref == 'master'
       env:
         ACCESS_TOKEN: ${{ secrets.PAT }}
         BASE_BRANCH: master
