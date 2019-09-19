@@ -15,7 +15,7 @@ export default class App extends Component {
   render() {
     return (
       <Provider store={store}>
-        <Router basename="/dist">
+        <Router>
           <div>
             <Header />
             <Route exact path="/" component={Tool} />

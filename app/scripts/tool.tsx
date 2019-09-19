@@ -25,7 +25,6 @@ class Tool extends React.Component<ToolProps> {
   }
 
   handleFileSelect(fileList: FileList) {
-    console.log("im here")
     engine.loadFiles(fileList)
   }
 
@@ -38,7 +37,7 @@ class Tool extends React.Component<ToolProps> {
   }
 
   saveClicked() {
-    engine.saveResult("result.csv")
+    engine.saveResult("results.csv")
   }
 
   calculateRowHeight(idx: number) {
@@ -136,6 +135,7 @@ function mapDispatchToProps(dispatch: React.Dispatch<any>): ToolActions {
     resetLogUpdated: () => dispatch(resetLogUpdated())
   }
 }
+
 // @ts-ignore
 export default withRouter(connect(
   mapStateToProps,
