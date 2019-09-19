@@ -1,6 +1,11 @@
-import { store, updateFilesLoaded, printResult, appendLog, setEngineStatus } from "./store"
-import { List } from "immutable"
 import { batch } from "react-redux"
+import { List } from "immutable"
+
+import {
+  WritableStream,
+  TransformStream,
+  ReadableStream
+} from "web-streams-polyfill/ponyfill/es6"
 
 import {
   WorkerResponse,
@@ -8,9 +13,21 @@ import {
   CmdError
 } from "./worker"
 
-const streamSaver =  require("streamsaver")
+import {
+  store,
+  updateFilesLoaded,
+  printResult,
+  appendLog,
+  setEngineStatus
+} from "./store"
+
 const work = require('webworkify')
 const workerModule = require('./worker')
+
+const streamSaver =  require("streamsaver")
+streamSaver.WritableStream = WritableStream
+streamSaver.TransformStream = TransformStream
+streamSaver.mitm = window.location.origin + "/mitm.html"
 
 class Engine {
   private worker: Worker = work(workerModule);
@@ -134,12 +151,13 @@ class Engine {
     store.dispatch(setEngineStatus("savingFile"))
 
     const blob = new Blob(store.getState().store.resultFragments.toJS())
+
     const fileStream = streamSaver.createWriteStream(fileName, {
-      size: blob.size // Makes the procentage visiable in the download
+     size: blob.size // Makes the procentage visiable in the download
     })
 
-    // @ts-ignore
-    const readableStream = blob.stream()
+    // create a stream from a blob source
+    const readableStream = new Response(blob).body!
 
     // @ts-ignore
     window.writer = fileStream.getWriter()
