@@ -1,3 +1,9 @@
+# WasmDB ![](https://github.com/ChristianMoesl/wasmdb/workflows/Node%20CI/badge.svg)
+
+WasmDB is a project of the Programming Language Group at the Department of Computer Sciences of Purdue University in USA Indiana.
+
+
+
 ## Compile WASM binary tools for AWS Lambda
 ```
 git clone https://github.com/WebAssembly/wabt
