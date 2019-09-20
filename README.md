@@ -1,4 +1,4 @@
-# WasmDB ![](https://github.com/ChristianMoesl/wasmdb/workflows/Node%20CI/badge.svg)
+# WasmDB ![](https://github.com/ChristianMoesl/wasmdb/workflows/Build/badge.svg)
 
 WasmDB is a project of the Programming Language Group at the Department of Computer Sciences of Purdue University in USA Indiana.
 
