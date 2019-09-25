@@ -1,27 +1,27 @@
-# WasmDB ![](https://github.com/ChristianMoesl/wasmdb/workflows/Build/badge.svg)
+# WasmDB ![](https://github.com/ChristianMoesl/wasmdb/workflows/CI/badge.svg)
 
 WasmDB is a project of the Programming Language Group at the Department of Computer Sciences of Purdue University in USA Indiana.
 
+This repository contains the client side code of the web application written in typescript/react. 
+WasmDB compiles SQL queries into highly specialised WebAssembly code to compute the results for a given CSV dataset with close to native performance. 
 
+## Build and Run 
 
-## Compile WASM binary tools for AWS Lambda
-```
-git clone https://github.com/WebAssembly/wabt
-cd wabt
-docker run -it -v $(pwd):/opt/wabt
-yum groupinstall "Development Tools"
-yum install wget file clang
-wget https://cmake.org/files/v3.10/cmake-3.10.0.tar.gz
-tar -xvzf cmake-3.10.0.tar.gz
-cd cmake-3.10.0
-export CC=gcc
-export CXX=g++
-yum remove cmake
-./bootstrap
-make
-make install
-ln -s /usr/local/bin/cmake /usr/bin/cmake
-make clang-release-no-tests
-```
+1. Install [NodeJS](https://nodejs.org/)
 
-/opt/wabt/out/clang/Release/no-tests/wat2wasm
+2. Clone this repository:
+  * `git clone https://github.com/ChristianMoesl/wasmdb` 
+  * `cd wasmdb`
+
+3. Download project dependencies and build:
+  * `npm install`
+  * `npm build`
+
+4. Serve web page (with python for example):
+  * `cd ./dist && python3 -m http.server`
+
+## Project Parts:
++ ![Lightweight Module Staging (LMS)](https://github.com/TiarkRompf/lms-clean) 
++ ![WebAssembly DSL for LMS](https://github.com/ChristianMoesl/lms-wasm)
++ ![SQL Query Compiler](https://github.com/ChristianMoesl/wasmdb-backend)
++ ![Query Executor Web App](https://github.com/ChristianMoesl/wasmdb)
