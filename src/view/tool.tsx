@@ -1,10 +1,24 @@
 import * as React from "react";
 import { connect } from "react-redux"
 import { withRouter } from "react-router-dom"
-import { VariableSizeList } from "react-window";
+import { VariableSizeList } from "react-window"
+import { Button, Box, Container, Grid, Typography } from "@material-ui/core"
+import { makeStyles, useTheme, Theme, createStyles, ThemeProvider } from '@material-ui/core/styles';
 
-import { engine } from "./engine";
-import { State as StoreState, changeQuery, appendLog, resetLogUpdated } from "./store"
+import CsvFilePicker from "./csv-file-picker"
+import SqlInput from "./sql-input"
+
+import { State as StoreState, changeQuery, appendLog, resetLogUpdated } from "../store"
+
+
+
+const useStyles = makeStyles((theme: Theme) =>
+  createStyles({
+    root: {
+      spacing: theme.spacing(3)
+    }
+  })
+)
 
 type ToolActions = {
   changeQuery: (query: string) => void,
@@ -12,7 +26,9 @@ type ToolActions = {
   resetLogUpdated: () => void
 }
 
-type ToolProps = StoreState & ToolActions
+type ToolProps = 
+  ReturnType<typeof mapStateToProps> &
+  ReturnType<typeof mapDispatchToProps>
 
 class Tool extends React.Component<ToolProps> {
 
@@ -25,19 +41,19 @@ class Tool extends React.Component<ToolProps> {
   }
 
   handleFileSelect(fileList: FileList) {
-    engine.loadFiles(fileList)
+   // engine.loadFiles(fileList)
   }
 
   executeClicked() {
-    engine.executeQuery(this.props.query)
+   // engine.executeQuery(this.props.query)
   }
 
   resetClicked() {
-    engine.reset()
+   // engine.reset()
   }
 
   saveClicked() {
-    engine.saveResult("results.csv")
+   // engine.saveResult("results.csv")
   }
 
   calculateRowHeight(idx: number) {
@@ -45,46 +61,31 @@ class Tool extends React.Component<ToolProps> {
   }
 
   transformFileList() {
-    return this.props.filesLoaded.map(file => { return {
+    return [{ name: "bla", details: "bla"}]
+    /*return this.props.filesLoaded.map(file => { return {
         name: escape(file.name),
         details: `(${file.type || "n/a"}) - ${file.size} bytes`
-    }})
+    }})*/
   }
 
   render() {
     return (
-      <div className="container">
-        <section id="file-section">
-          <h3>1. Select CSV files as data source</h3>
-          <div className="d-flex justify-content-left">
-            <label id="load-button" className="btn my-button btn-file">
-                Choose Files <input type="file" id="files" name="files[]"
-                              onChange={ (e: any) => this.handleFileSelect(e.target.files)}
-                              disabled={this.props.engineStatus !== "idle"}
-                              multiple accept="text/csv" style={{ display: "none" }} />
-            </label>
-          </div>
-          <output id="list">
-            {this.transformFileList().map((file, key) => <span key={key}><strong>{file.name}</strong>{file.details}</span>)}
-          </output>
-        </section>
+      <main>
+      <Container maxWidth="md">
+        <Box>
+          <Typography variant="h4">
+            Tables
+          </Typography>
+        </Box>
+        <CsvFilePicker />
+        <Box>
+          <Typography variant="h4">
+            Tables
+          </Typography>
+        </Box>
+        <SqlInput />
 
-        <section id="query-section">
-          <h3>2. Write SQL query</h3>
-          <textarea name="textarea" id="query" value={this.props.query}
-                    onChange={(e: any) => this.handleQueryChange(e.target.value)}
-                    className="code form-control"></textarea>
-          <div className="row">
-            <div className="col-6 d-flex justify-content-start">
-              <button id="process-button" className="btn my-button" type="button"
-                      disabled={this.props.engineStatus !== "idle"}
-                      onClick={ (e: any) => this.executeClicked() }  >Process</button>
-              <button className="btn my-abort-button" type="button"
-                      onClick={ (e: any) => this.resetClicked() }>Reset</button>
-            </div>
-          </div>
 
-        </section>
 
         <section id="result-section">
           <div className="row">
@@ -112,19 +113,21 @@ class Tool extends React.Component<ToolProps> {
             <div id="results" style={{ width: "100%" }}></div>
           </figure>
         </section>
-      </div>
+      </Container>
+      </main>
     )
   }
 }
 
-function mapStateToProps(state: { store: StoreState }): StoreState {
+function mapStateToProps(state: { store: StoreState }) {
   return {
     query: state.store.query,
-    filesLoaded: state.store.filesLoaded,
+    filePreviews: state.store.filePreviews,
     logMessages: state.store.logMessages,
     resultFragments: state.store.resultFragments,
     logUpdated: state.store.logUpdated,
-    engineStatus: state.store.engineStatus
+    engineStatus: state.store.engineStatus,
+    engineError: state.store.engineError
   }
 }
 

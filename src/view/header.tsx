@@ -1,7 +1,7 @@
-import React, { Component } from "react";
+/*import React, { Component } from "react";
 import { connect } from "react-redux"
 import { Link, withRouter } from "react-router-dom"
-import { State as StoreState, EngineStatus } from "./store"
+import { State as StoreState, EngineStatus } from "../store"
 
 type HeaderProps = {
   engineStatus: EngineStatus
@@ -47,3 +47,4 @@ export default withRouter(connect(
   mapStateToProps,
   null
 )(Header));
+*/
