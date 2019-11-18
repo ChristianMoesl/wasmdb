@@ -3,7 +3,7 @@ import { connect } from "react-redux"
 import { withRouter } from "react-router-dom"
 import { FixedSizeList } from "react-window"
 import { List } from "immutable"
-import { State as StoreState, resetLogUpdated } from "./store"
+import { State as StoreState, resetLogUpdated } from "../store"
 
 type InternalsActionProps = {
   resetLogUpdated: () => void

@@ -1,4 +1,4 @@
-import * as React from 'react';
+import React, { Component } from "react";
 
 export default class Examples extends React.Component {
   render() {
