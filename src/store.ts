@@ -1,4 +1,4 @@
-import {List} from "immutable"
+import {List, Map} from "immutable"
 import promiseMiddleware from "redux-promise-middleware"
 import {composeWithDevTools} from "redux-devtools-extension"
 import thunkMiddleware from "redux-thunk"
@@ -22,7 +22,8 @@ import {
   WorkerResponse,
   WorkerRequest,
   CmdError,
-  FilePreview
+  FilePreview,
+  CmdFilesLoaded
 } from "./worker"
 
 import {parse} from "./util/sql-parser"
@@ -37,8 +38,8 @@ streamSaver.WritableStream = WritableStream
 streamSaver.TransformStream = TransformStream
 streamSaver.mitm = window.location.origin + "/mitm.html"
 
-const commandResolvers = new Map<string, any>()
-const commandRejectors = new Map<string, any>()
+let commandResolvers = Map<string, (param: any) => void>()
+let commandRejectors = Map<string, (param: any) => void>()
 
 const storeUpdateFrequency = 5
 let nextStoreUpdate = 1
@@ -51,64 +52,55 @@ function handle(response: WorkerResponse) {
     case "request":
       switch (response.command) {
         case "log":
-          console.log(response.payload)
+          store.dispatch(appendLog(response.payload))
+          break
+        case "print":
+          printedMessages = printedMessages.push(response.payload)
+
+          if (printedMessages.size + printedCount === nextStoreUpdate) {
+            nextStoreUpdate *= storeUpdateFrequency
+
+            store.dispatch(printResult(printedMessages))
+
+            printedCount += printedMessages.size
+
+            printedMessages = List()
+          }
           break
       }
       break
     case "error": rejectResponse(response.answers, response.payload); break
     case "response": resolveResponse(response.answers, response.payload); break
-    /*
-    default: resolveResponse(response.answers)
-    case "filesLoaded": resolveResponse(response.answers, response.files); break
-    case "finishedExecution": resolveResponse(response.answers); break
-      store.dispatch(printResult(printedMessages))
-      resolveResponse(response.answers)
-      break
-    case "log": store.dispatch(appendLog(response.msg)); break
-    case "print":
-      printedMessages = printedMessages.push(response.msg)
-
-      if (printedMessages.size + printedCount === nextStoreUpdate) {
-        nextStoreUpdate *= storeUpdateFrequency
-
-        store.dispatch(printResult(printedMessages))
-
-        printedCount += printedMessages.size
-
-        printedMessages = List()
-      }
-      break
-    case "error":
-      batch(() => {
-        store.dispatch(setEngineStatus("idle"))
-        store.dispatch(appendLog(response.msg))
-      })
-      rejectResponse(response)
-      break*/
   }
 }
 
 function rejectResponse(answers: string, payload: any) {
-  commandResolvers.delete(answers)
-  const rejector = commandRejectors.get(answers)
-  commandRejectors.delete(answers)
+  commandResolvers = commandResolvers.delete(answers)
 
-  rejector(payload)
+  if (commandRejectors.has(answers)) {
+    const rejector = commandRejectors.get(answers) as (params: any) => void
+    commandRejectors = commandRejectors.delete(answers)
+
+    rejector(payload)
+  }
 }
 
 function resolveResponse(answers: string, payload: any) {
-  commandRejectors.delete(answers)
-  const resolve = commandResolvers.get(answers)
-  commandResolvers.delete(answers)
+  commandRejectors = commandRejectors.delete(answers)
 
-  resolve(payload)
+  if (commandResolvers.has(answers)) {
+    const resolve = commandResolvers.get(answers) as (params: any) => void
+    commandResolvers = commandResolvers.delete(answers)
+
+    resolve(payload)
+  }
 }
 
-async function sendRequestWithExpectedResponse<T>(command: string, payload: any): Promise<T> {
+async function sendRequest<T extends WorkerResponse>(command: string, payload: any): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     worker.postMessage({type: "request", command, payload})
-    commandResolvers.set(command, resolve)
-    commandRejectors.set(command, reject)
+    commandResolvers = commandResolvers.set(command, resolve)
+    commandRejectors = commandRejectors.set(command, reject)
   })
 }
 
@@ -146,10 +138,11 @@ const initialState = ({
   query: "",
   queryHtml: "",
   queryError: undefined as (undefined | string),
-  filePreviews: demoFilePreviews,// new Array<FilePreview>(),
+  notifications: List<string>(),
+  filePreviews: new Array<FilePreview>(),
   logMessages: List<{date: string, msg: string}>(),
-  resultFragments: List<string>(),
   logUpdated: false,
+  resultFragments: List<string>(),
   engineStatus: "idle" as EngineStatus,
   engineError: null as (null | string),
 })
@@ -181,10 +174,10 @@ type ExecuteQueryAction =
   {type: "EXECUTE_QUERY_REJECTED", error: true, payload: string}
 
 export const executeQuery = () =>
-  (dispatch: (e: any) => void, getState: () => State) => {
+  (dispatch: (e: any) => void, getState: () => {store: State}) => {
     dispatch({
       type: "EXECUTE_QUERY",
-      payload() {return sendRequestWithExpectedResponse<any>("executeQuery", getState().query)}
+      payload() {return sendRequest<any>("executeQuery", getState().store.query)}
     })
   }
 
@@ -255,19 +248,37 @@ export const changeQuery = (query: string) => ({
 export type PrintResultAction = {type: "PRINT_RESULT", result: List<string>};
 export function printResult(result: List<string>) {return {type: "PRINT_RESULT", result}}
 
+export type NotificationAction = {type: "NOTIFICATION", payload: string}
+export const notify = (msg: string) => ({type: "NOTIFICATION", payload: msg})
+
 type LoadFilesAction =
   {type: "LOAD_FILES_PENDING"} |
   {type: "LOAD_FILES_FULFILLED", payload: Array<FilePreview>} |
   {type: "LOAD_FILES_REJECTED", error: true, payload: string}
 
-export const loadFiles = (fileHandles: FileList) => {
-  return {
-    type: "LOAD_FILES",
-    async payload() {
-      return sendRequestWithExpectedResponse("loadFiles", fileHandles)
+export const loadFiles = (fileHandles: FileList) =>
+  (dispatch: (s: any) => void, state: () => {store: State}) => {
+    let canNotLoad = new Array<string>()
+    let canLoad = new Array<File>()
+
+    for (let i = 0; i < fileHandles.length; i++) {
+      const name = fileHandles[i].name
+
+      if (!state().store.filePreviews.every(f => f.name !== name))
+        canNotLoad.push(name)
+      else
+        canLoad.push(fileHandles[i])
     }
+
+    if (canNotLoad.length > 0)
+      dispatch(notify(`file${canNotLoad.length > 1 ? "s" : ""}: ${canNotLoad} already loaded`))
+
+    dispatch({
+      type: "LOAD_FILES",
+      async payload() {return sendRequest<CmdFilesLoaded>("loadFiles", fileHandles)}
+    })
   }
-}
+
 
 type RemoveFileAction = {type: "REMOVE_FILE", fileName: string}
 export const removeFile: (fileName: string) => RemoveFileAction
@@ -318,6 +329,7 @@ type Action = SetEngineStatusAction
   | ExecuteQueryAction
   | AppendLogAction
   | ResetLogUpdatedAction
+  | NotificationAction
   | LoadFilesAction
   | RemoveFileAction
   | SaveFileAction
@@ -346,9 +358,10 @@ export function reducer(state = initialState, action: Action): State {
       printedCount = 0
       printedMessages = List()
       nextStoreUpdate = 1
-      return {...state, engineStatus: "executing"}
+      return {...state, resultFragments: List(), engineStatus: "executing"}
     case "EXECUTE_QUERY_FULFILLED": return {...state, engineStatus: "idle", engineError: null}
     case "EXECUTE_QUERY_REJECTED": return {...state, engineStatus: "idle", engineError: action.payload}
+    case "NOTIFICATION": return {...state, notifications: state.notifications.push(action.payload)}
     case "LOAD_FILES_PENDING": return {...state, engineStatus: "fileLoading"}
     case "LOAD_FILES_FULFILLED": return {...state, filePreviews: state.filePreviews.concat(action.payload)}
     case "LOAD_FILES_REJECTED": return {...state, engineError: action.payload}
@@ -368,7 +381,7 @@ export const reducers = combineReducers({
   store: reducer,
 });
 
-const middleware = applyMiddleware(promiseMiddleware, thunkMiddleware)
+const middleware = applyMiddleware(thunkMiddleware, promiseMiddleware)
 
 // Store
 export const store = createStore(reducers, composeWithDevTools({})(middleware))

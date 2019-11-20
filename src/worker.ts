@@ -13,7 +13,7 @@ export type ErrorResponse = {type: "error", answers: string, payload: string}
 
 export type Cmd = Request | Response | ErrorResponse
 
-export type CmdLoadFiles = {type: "request", command: "loadFiles", payload: FileList}
+export type CmdLoadFiles = {type: "request", command: "loadFiles", payload: Array<File>}
 export type CmdFilesLoaded = {type: "response", answers: "loadFiles", payload: Array<FilePreview>}
 export type CmdExecuteQuery = {type: "request", command: "executeQuery", payload: string}
 export type CmdFinishedExec = {type: "response", answers: "executeQuery", payload: null}
@@ -69,7 +69,7 @@ module.exports = function (self: any) {
     try {
       switch (request.command) {
         case "loadFiles":
-          const filesLoaded: Array<FileContent> = await loadFiles(request.payload as FileList)
+          const filesLoaded: Array<FileContent> = await loadFiles(request.payload as Array<File>)
 
           filesLoaded.forEach(file => {
             files.set(file.name, file.content)
@@ -114,25 +114,28 @@ module.exports = function (self: any) {
         }
       })
 
-      log(`received WASM binary`)
-      const binary = Buffer.from(await response.text(), 'base64');
+      if (response.ok) {
+        log(`received WASM binary`)
+        const binary = Buffer.from(await response.text(), 'base64');
 
-      log(`execute WASM binary`)
-      await run(binary);
 
-      log(`finished execution`)
+        log(`execute WASM binary`)
+        await run(binary);
+
+        log(`finished execution`)
+      } else {
+        log(`received error ${response.status}`)
+      }
     } finally {
       flushOutputBuffer();
     }
   }
 
-  async function loadFiles(fileHandles: FileList) {
+  async function loadFiles(fileHandles: Array<File>) {
     return new Promise<Array<FileContent>>((resolve, reject) => {
       let files = new Array<FileContent>()
 
-      for (var i = 0, f; f = fileHandles[i]; i++) {
-        const file = f;
-
+      for (const file of fileHandles) {
         log(`loading ${file.name} into memory`);
 
         const reader = new FileReader();

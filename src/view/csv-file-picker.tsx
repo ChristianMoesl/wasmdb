@@ -7,16 +7,6 @@ import { Add } from "@material-ui/icons"
 import { State as StoreState, loadFiles, removeFile, FilePreview } from "../store"
 
 
-type Props = {
-  filePreviews: Array<FilePreview>,
-  engineStatus: string
-}
-
-type Actions = {
-  loadFiles: (files: FileList) => void
-  removeFile: (file: string) => void
-}
-
 
 
 const useTableStyles = makeStyles((theme: Theme) =>
@@ -41,7 +31,8 @@ const useTableStyles = makeStyles((theme: Theme) =>
 }))
 
 type FilePreviewProps = {
-  file: FilePreview
+  file: FilePreview,
+  removeFile: (name: string) => void,
 }
 
 function FilePreviewTable(props: FilePreviewProps) {
@@ -109,6 +100,9 @@ function FilePreviewTable(props: FilePreviewProps) {
           </TableBody>
         </Table>
       </Box>
+      <Button variant="outlined" onClick={ () => props.removeFile(props.file.name) } >
+        X
+      </Button>
     </Paper>
   </Grid>
   )
@@ -122,7 +116,11 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 )
 
-function CsvFilePicker(props: Props & Actions) {
+type Props = 
+  ReturnType<typeof mapStateToProps> &
+  ReturnType<typeof mapDispatchToProps>
+
+function CsvFilePicker(props: Props) {
 
   const classes = useStyles()
 
@@ -137,7 +135,7 @@ function CsvFilePicker(props: Props & Actions) {
               justify="center"
               alignItems="flex-start">
           {props.filePreviews.map((file, key) => (
-                <FilePreviewTable file={file} key={key} />
+                <FilePreviewTable file={file} key={key} removeFile={props.removeFile} />
             ))}
           <Grid item xs={12} sm={8} md={4}>
             <input
@@ -162,17 +160,17 @@ function CsvFilePicker(props: Props & Actions) {
 }
 
 
-function mapStateToProps(state: { store: StoreState }): Props {
+function mapStateToProps(state: { store: StoreState }) {
   return {
     filePreviews: state.store.filePreviews,
     engineStatus: state.store.engineStatus
   }
 }
 
-function mapDispatchToProps(dispatch: React.Dispatch<any>): Actions {
+function mapDispatchToProps(dispatch: React.Dispatch<any>) {
   return {
-    loadFiles: files => dispatch(loadFiles(files)),
-    removeFile: name => dispatch(removeFile(name))
+    loadFiles: (files: FileList) => dispatch(loadFiles(files)),
+    removeFile: (name: string) => dispatch(removeFile(name))
   }
 }
 

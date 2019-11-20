@@ -38,7 +38,7 @@ function malloc(size: number): number {
 
 function strlen(arr: Uint8Array): number {
   let len = 0;
-  while (arr[len] !== 0) { len++; }
+  while (arr[len] !== 0) {len++;}
   return len;
 }
 
@@ -139,8 +139,8 @@ export async function run(binary: BufferSource) {
   });
 
   let env = {
-    abortStackOverflow: (err: number) => { throw new Error(`overflow: ` + err); },
-    table: new WebAssembly.Table({ initial: 0, maximum: 0, element: 'anyfunc' }),
+    abortStackOverflow: (err: number) => {throw new Error(`overflow: ` + err);},
+    table: new WebAssembly.Table({initial: 0, maximum: 0, element: 'anyfunc'}),
     __table_base: 0,
     memory,
     __memory_base: 1024,
@@ -159,10 +159,11 @@ export async function run(binary: BufferSource) {
   };
 
   try {
-    const results = await WebAssembly.instantiate(binary, { env });
+    const results = await WebAssembly.instantiate(binary, {env});
 
     mem = results.instance.exports.mem;
 
+    //@ts-ignore
     return results.instance.exports.Snippet(0);
   } catch (reason) {
     error(reason.toString());
