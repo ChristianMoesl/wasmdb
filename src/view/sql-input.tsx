@@ -7,8 +7,6 @@ import * as PropTypes from 'prop-types';
 import {Button, Box, Container, Grid, Typography, TextField, FormControl, FormControlLabel, FormHelperText, InputLabel, OutlinedInput} from "@material-ui/core"
 import {makeStyles, useTheme, Theme, createStyles, ThemeProvider} from '@material-ui/core/styles'
 
-import {State as StoreState, changeQuery, htmlToText, appendLog, resetLogUpdated, EngineStatus, executeQuery} from "../store"
-
 
 // no operation
 const noop = () => null
@@ -88,38 +86,30 @@ function normalizeHtml(str: string): string {
   return str && str.replace(/&nbsp;|\u202F|\u00A0/g, ' ');
 }
 
-function findLastTextNode(node: Node): Node | null {
-  if (node.nodeType === Node.TEXT_NODE) return node;
-  let children = node.childNodes;
-  for (let i = children.length - 1; i >= 0; i--) {
-    let textNode = findLastTextNode(children[i]);
-    if (textNode !== null) return textNode;
-  }
-  return null;
+function htmlToText(html: string) {
+  return html.replace(/&nbsp;/g, ' ')
+    .replace(/<div>([^<]*)<\/div>/g, '$1\n')
+    .replace(/<[^>]*>/g, '')
 }
 
-function replaceCaret(el: HTMLElement) {
-  // Place the caret at the end of the element
-  const target = findLastTextNode(el);
-  // do not move caret if element was not focused
-  const isTargetFocused = document.activeElement === el;
-  if (target !== null && target.nodeValue !== null && isTargetFocused) {
-    var sel = window.getSelection();
-    if (sel !== null) {
-      var range = document.createRange();
-      range.setStart(target, target.nodeValue.length);
-      range.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(range);
-    }
-    if (el instanceof HTMLElement) el.focus();
-  }
+type ContentEditableEvent = React.SyntheticEvent<any, Event> & {target: {value: string}};
+type Modify<T, R> = Pick<T, Exclude<keyof T, keyof R>> & R;
+type DivProps = Modify<JSX.IntrinsicElements["div"], {onChange: ((event: ContentEditableEvent) => void)}>;
+
+
+interface EditableProps extends DivProps {
+  value: string,
+  onChange: (event: {target: {value: string}}) => void
+  disabled?: boolean,
+  tagName?: string,
+  className?: string,
+  style?: Object,
+  inputRef?: React.RefObject<HTMLElement> | Function,
+  changeQuery: (query: string, error?: string) => void,
 }
 
-/**
- * A simple component for an html element with editable contents.
- */
-class ContentEditable extends Component<Props> {
+
+class ContentEditable extends Component<EditableProps> {
   el: any = typeof this.props.inputRef === 'function' ? {current: null} : React.createRef<HTMLElement>();
 
   getEl = () => (this.props.inputRef && typeof this.props.inputRef !== 'function' ? this.props.inputRef : this.el).current;
@@ -157,7 +147,7 @@ class ContentEditable extends Component<Props> {
     }
 
 
-    shouldComponentUpdate(nextProps: Props): boolean {
+    shouldComponentUpdate(nextProps: EditableProps): boolean {
       const {props} = this;
       const el = this.getEl();
 
@@ -223,37 +213,20 @@ class ContentEditable extends Component<Props> {
   }
 }
 
-type ContentEditableEvent = React.SyntheticEvent<any, Event> & {target: {value: string}};
-type Modify<T, R> = Pick<T, Exclude<keyof T, keyof R>> & R;
-type DivProps = Modify<JSX.IntrinsicElements["div"], {onChange: ((event: ContentEditableEvent) => void)}>;
 
-export interface Props extends DivProps {
-  value: string,
-  onChange: (event: {target: {value: string}}) => void
-  disabled?: boolean,
-  tagName?: string,
-  className?: string,
-  style?: Object,
-  inputRef?: React.RefObject<HTMLElement> | Function,
-  changeQuery: (query: string, error?: string) => void,
+export type QueryState = {
+  sql: string,
+  htmlRepresentation: string,
+  parserError?: string,
 }
 
+export type Props = {
+  query: QueryState,
+  changeQuery: (sql: string) => void,
+  executeQuery: () => void,
+}
 
-
-type ToolProps = ReturnType<typeof mapStateToProps> &
-  ReturnType<typeof mapDispatchToProps>
-
-//     <TextField
-//         label="SQL Query"
-//         variant="outlined"
-//         id="custom-css-outlined-input"
-//         multiline
-//         error={sqlInputError !== ""}
-//         helperText={sqlInputError}
-//         fullWidth
-//         onChange={ (e: any) => props.changeQuery(e.target.value) }
-//       />
-function SqlInput(props: ToolProps) {
+export default function SqlInput(props: Props) {
   const [labelWidth, setLabelWidth] = useState(0)
   const [syntaxError, setSyntaxError] = useState("")
   const labelRef = useRef<HTMLLabelElement>(null)
@@ -267,18 +240,18 @@ function SqlInput(props: ToolProps) {
         <OutlinedInput
           id="component-outlined"
           labelWidth={labelWidth}
-          value={props.queryHtml}
+          value={props.query.htmlRepresentation}
           fullWidth
-          error={props.queryError !== undefined}
+          error={props.query.parserError !== undefined}
           inputComponent={ContentEditable as any}
           inputProps={{
             changeQuery: props.changeQuery,
             fullwidth: "true",
           }}
         />
-        {props.queryError &&
+        {props.query.parserError &&
         <FormHelperText>
-          {props.queryError}
+          {props.query.parserError}
         </FormHelperText>
         }
       </FormControl>
@@ -286,33 +259,10 @@ function SqlInput(props: ToolProps) {
       </div>
       <Button variant="contained"
         color="primary"
-        disabled={props.queryError !== undefined}
-        onClick={(e: any) => { props.executeQuery() }}  >
+        disabled={props.query.parserError !== undefined}
+        onClick={ () => { props.executeQuery() }}  >
         Process
         </Button>
     </div>
   )
 }
-
-function mapStateToProps(state: {store: StoreState}) {
-  return {
-    query: state.store.query,
-    queryHtml: state.store.queryHtml,
-    queryError: state.store.queryError,
-    engineStatus: state.store.engineStatus,
-    engineError: state.store.engineError
-  }
-}
-
-function mapDispatchToProps(dispatch: React.Dispatch<any>) {
-  return {
-    changeQuery: (query: string) => dispatch(changeQuery(query)),
-    executeQuery: () => dispatch(executeQuery()),
-  }
-}
-
-// @ts-ignore
-export default withRouter(connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(SqlInput));

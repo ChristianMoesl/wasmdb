@@ -1,13 +1,9 @@
 import React, { Component } from "react"
-import { connect } from "react-redux"
-import { withRouter } from "react-router-dom"
+import {List} from "immutable"
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles'
 import { Box, Button, Paper, Grid, Table, TableRow, TableCell, Typography, TableBody, Icon } from "@material-ui/core"
 import { Add } from "@material-ui/icons"
 import { State as StoreState, loadFiles, removeFile, FilePreview } from "../store"
-
-
-
 
 const useTableStyles = makeStyles((theme: Theme) =>
   createStyles({
@@ -116,12 +112,14 @@ const useStyles = makeStyles((theme: Theme) =>
   }),
 )
 
-type Props = 
-  ReturnType<typeof mapStateToProps> &
-  ReturnType<typeof mapDispatchToProps>
+export type Props = {
+  disabled: boolean,
+  filePreviews: List<FilePreview>,
+  loadFiles: (files: FileList) => void,
+  removeFile: (name: string) => void,
+}
 
-function CsvFilePicker(props: Props) {
-
+export default function CsvFilePicker(props: Props) {
   const classes = useStyles()
 
   return (
@@ -159,23 +157,9 @@ function CsvFilePicker(props: Props) {
   )
 }
 
-
-function mapStateToProps(state: { store: StoreState }) {
-  return {
-    filePreviews: state.store.filePreviews,
-    engineStatus: state.store.engineStatus
-  }
+CsvFilePicker.defaultProps = { 
+  disabled: false,
+  filePreviews: List<FilePreview>(),
+  loadFiles: () => { },
+  removeFile: () => { },
 }
-
-function mapDispatchToProps(dispatch: React.Dispatch<any>) {
-  return {
-    loadFiles: (files: FileList) => dispatch(loadFiles(files)),
-    removeFile: (name: string) => dispatch(removeFile(name))
-  }
-}
-
-// @ts-ignore
-export default withRouter(connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(CsvFilePicker));

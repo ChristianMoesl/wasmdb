@@ -6,109 +6,16 @@ import {Dispatch} from "react"
 import {batch} from "react-redux"
 
 import {
-  WritableStream,
-  TransformStream,
-  ReadableStream
-} from "web-streams-polyfill/ponyfill/es6"
-
-import {
-  combineReducers,
   createStore,
   applyMiddleware,
-  compose
+  Action,
 } from "redux";
 
-import {
-  WorkerResponse,
-  WorkerRequest,
-  CmdError,
-  FilePreview,
-  CmdFilesLoaded
-} from "./worker"
-
 import {parse} from "./util/sql-parser"
-
-export {FilePreview} from "./worker"
-
-const work = require('webworkify')
-const workerModule = require('./worker')
-
-const streamSaver = require("streamsaver")
-streamSaver.WritableStream = WritableStream
-streamSaver.TransformStream = TransformStream
-streamSaver.mitm = window.location.origin + "/mitm.html"
-
-let commandResolvers = Map<string, (param: any) => void>()
-let commandRejectors = Map<string, (param: any) => void>()
-
-const storeUpdateFrequency = 5
-let nextStoreUpdate = 1
-let printedCount = 0
-
-let printedMessages = List<string>()
-
-function handle(response: WorkerResponse) {
-  switch (response.type) {
-    case "request":
-      switch (response.command) {
-        case "log":
-          store.dispatch(appendLog(response.payload))
-          break
-        case "print":
-          printedMessages = printedMessages.push(response.payload)
-
-          if (printedMessages.size + printedCount === nextStoreUpdate) {
-            nextStoreUpdate *= storeUpdateFrequency
-
-            store.dispatch(printResult(printedMessages))
-
-            printedCount += printedMessages.size
-
-            printedMessages = List()
-          }
-          break
-      }
-      break
-    case "error": rejectResponse(response.answers, response.payload); break
-    case "response": resolveResponse(response.answers, response.payload); break
-  }
-}
-
-function rejectResponse(answers: string, payload: any) {
-  commandResolvers = commandResolvers.delete(answers)
-
-  if (commandRejectors.has(answers)) {
-    const rejector = commandRejectors.get(answers) as (params: any) => void
-    commandRejectors = commandRejectors.delete(answers)
-
-    rejector(payload)
-  }
-}
-
-function resolveResponse(answers: string, payload: any) {
-  commandRejectors = commandRejectors.delete(answers)
-
-  if (commandResolvers.has(answers)) {
-    const resolve = commandResolvers.get(answers) as (params: any) => void
-    commandResolvers = commandResolvers.delete(answers)
-
-    resolve(payload)
-  }
-}
-
-async function sendRequest<T extends WorkerResponse>(command: string, payload: any): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    worker.postMessage({type: "request", command, payload})
-    commandResolvers = commandResolvers.set(command, resolve)
-    commandRejectors = commandRejectors.set(command, reject)
-  })
-}
-
-let worker: Worker = work(workerModule);
-worker.addEventListener('message', (event: any) => handle(<WorkerResponse>event.data));
-
-
-
+import {saveBlob} from "./util/blob-save"
+import {QueryState} from "./view/sql-input"
+import {createWasmWorker, FilePreview, EngineStatus} from "./wasm/master"
+export {FilePreview} from "./wasm/master"
 
 
 const demoFilePreviews: Array<FilePreview> = [{
@@ -128,18 +35,25 @@ const demoFilePreviews: Array<FilePreview> = [{
   type: "text/csv"
 }]
 
+function createConnectedWorker() {
+  return createWasmWorker(
+    (msg: string) => store.dispatch(<any>appendLog(msg)),
+    (result: List<string>) => store.dispatch(<any>printResult(result))
+  )
+}
 
-
-
+let worker = createConnectedWorker()
 
 export type State = typeof initialState
 
-const initialState = ({
-  query: "",
-  queryHtml: "",
-  queryError: undefined as (undefined | string),
+export const initialState = ({
+  query: {
+    sql: "",
+    htmlRepresentation: "",
+    parserError: undefined as (undefined | string),
+  } as QueryState,
   notifications: List<string>(),
-  filePreviews: new Array<FilePreview>(),
+  filePreviews: List<FilePreview>(),
   logMessages: List<{date: string, msg: string}>(),
   logUpdated: false,
   resultFragments: List<string>(),
@@ -148,7 +62,7 @@ const initialState = ({
 })
 
 // Actions
-export type AppendLogAction = {type: "APPEND_LOG", msg: {date: string, msg: string}}
+export type AppendLogAction = {type: "APPEND_LOG", error: false, payload: {date: string, msg: string}}
 export function appendLog(msg: string) {
   const date = new Date();
   const hours = date.getHours().toString().padStart(2, "0");
@@ -157,16 +71,14 @@ export function appendLog(msg: string) {
   const milliseconds = date.getMilliseconds().toString().padStart(3, "0");
 
   return {
-    type: "APPEND_LOG", msg: {
+    type: "APPEND_LOG",
+    error: false,
+    payload: {
       date: "[" + hours + ":" + minutes + ":" + seconds + ":" + milliseconds + "]",
       msg
     }
   }
 }
-
-
-export type EngineStatus = "fileLoading" | "savingFile" | "executing" | "idle"
-export type SetEngineStatusAction = {type: "SET_ENGINE_STATUS", status: EngineStatus}
 
 type ExecuteQueryAction =
   {type: "EXECUTE_QUERY_PENDING"} |
@@ -174,10 +86,10 @@ type ExecuteQueryAction =
   {type: "EXECUTE_QUERY_REJECTED", error: true, payload: string}
 
 export const executeQuery = () =>
-  (dispatch: (e: any) => void, getState: () => {store: State}) => {
+  (dispatch: Dispatch<object>, getState: () => State) => {
     dispatch({
       type: "EXECUTE_QUERY",
-      payload() {return sendRequest<any>("executeQuery", getState().store.query)}
+      payload() {return worker("executeQuery", getState().query)}
     })
   }
 
@@ -186,18 +98,13 @@ export function resetLogUpdated() {return {type: "RESET_LOG_UPDATED"}}
 
 type AbortExecutionAction = {type: "ABORT_EXECUTION"}
 export const abortExecution: () => AbortExecutionAction = () => {
-  worker.terminate()
-  worker = work(workerModule)
+  worker("abortExecution")
+  worker = createConnectedWorker()
   return {
     type: "ABORT_EXECUTION"
   }
 }
 
-export function htmlToText(html: string) {
-  return html.replace(/&nbsp;/g, ' ')
-    .replace(/<div>([^<]*)<\/div>/g, '$1\n')
-    .replace(/<[^>]*>/g, '')
-}
 
 function textToHtml(text: string) {
   return text.replace(/ /g, '&nbsp;')
@@ -218,8 +125,8 @@ function stripWhitespaces(text: string) {
 
 export type ChangeQueryAction =
   {type: "CHANGE_QUERY_PENDING"} |
-  {type: "CHANGE_QUERY_FULFILLED", payload: {query: string, queryHtml: string}} |
-  {type: "CHANGE_QUERY_REJECTED", error: true, payload: {query: string, queryHtml: string, queryError: string}}
+  {type: "CHANGE_QUERY_FULFILLED", payload: QueryState} |
+  {type: "CHANGE_QUERY_REJECTED", error: true, payload: QueryState}
 
 export const changeQuery = (query: string) => ({
   type: "CHANGE_QUERY",
@@ -230,15 +137,15 @@ export const changeQuery = (query: string) => ({
       const colored = parse(parts[1])
 
       resolve({
-        query: query,
-        queryHtml: textToHtml(parts[0] + colored + parts[2]) + "<br>",
-        queryError: undefined,
+        sql: query,
+        htmlRepresentation: textToHtml(parts[0] + colored + parts[2]) + "<br>",
+        parserError: undefined,
       })
     } catch (e) {
       reject({
-        query: query,
-        queryHtml: textToHtml(query) + "<br>",
-        queryError: (e as SyntaxError).message,
+        sql: query,
+        htmlRepresentation: textToHtml(query) + "<br>",
+        parserError: (e as SyntaxError).message,
       })
     }
   })
@@ -257,14 +164,14 @@ type LoadFilesAction =
   {type: "LOAD_FILES_REJECTED", error: true, payload: string}
 
 export const loadFiles = (fileHandles: FileList) =>
-  (dispatch: (s: any) => void, state: () => {store: State}) => {
+  (dispatch: Dispatch<object>, state: () => State) => {
     let canNotLoad = new Array<string>()
     let canLoad = new Array<File>()
 
     for (let i = 0; i < fileHandles.length; i++) {
       const name = fileHandles[i].name
 
-      if (!state().store.filePreviews.every(f => f.name !== name))
+      if (!state().filePreviews.every(f => f.name !== name))
         canNotLoad.push(name)
       else
         canLoad.push(fileHandles[i])
@@ -275,7 +182,7 @@ export const loadFiles = (fileHandles: FileList) =>
 
     dispatch({
       type: "LOAD_FILES",
-      async payload() {return sendRequest<CmdFilesLoaded>("loadFiles", fileHandles)}
+      async payload() {return worker("loadFiles", fileHandles)}
     })
   }
 
@@ -290,44 +197,26 @@ type SaveFileAction =
   {type: "SAVE_FILE_FULFILLED", payload: string} |
   {type: "SAVE_FILE_REJECTED", error: true, payload: string}
 
-export const saveFile = (fileName: string) => new Promise((resolve, reject) => {
-  const blob = new Blob(store.getState().store.resultFragments.toJS())
-
-  const fileStream = streamSaver.createWriteStream(fileName, {
-    size: blob.size // Makes the procentage visiable in the download
-  })
-
-  // create a stream from a blob source
-  const readableStream = new Response(blob).body!
-
-  // @ts-ignore
-  window.writer = fileStream.getWriter()
-  const reader = readableStream.getReader()
-
-  function cleanUp(writer: any) {
-    writer.close()
-
-    resolve()
+export const saveFile = (fileName: string) =>
+  (dispatch: Dispatch<object>, state: () => State) => {
+    dispatch({
+      type: "SAVE_FILE",
+      async payload() {
+        const blob = new Blob(state().resultFragments.toJS())
+        return saveBlob(fileName, blob)
+      }
+    })
   }
-
-  const pump = () => reader.read().then((res: any) =>
-    // @ts-ignore
-    res.done ? cleanUp(writer) : writer.write(res.value).then(pump))
-
-  pump()
-})
-
 
 
 type EngineErrorAction = {type: "ENGINE_ERROR", msg: string}
 export const engineError: (msg: string) => EngineErrorAction
   = msg => ({type: "ENGINE_ERROR", msg})
 
-type Action = SetEngineStatusAction
-  | PrintResultAction
+type PossibleAction = PrintResultAction
+  | AppendLogAction
   | ChangeQueryAction
   | ExecuteQueryAction
-  | AppendLogAction
   | ResetLogUpdatedAction
   | NotificationAction
   | LoadFilesAction
@@ -336,52 +225,86 @@ type Action = SetEngineStatusAction
   | EngineErrorAction
 
 // Reducer
-export function reducer(state = initialState, action: Action): State {
+export function reducer(state = initialState, action: PossibleAction): State {
   switch (action.type) {
-    case "SET_ENGINE_STATUS":
-      return (action.status === "executing") ?
-        {...state, engineStatus: action.status, resultFragments: List()} : {...state, engineStatus: action.status}
     case "CHANGE_QUERY_PENDING": return state
-    case "CHANGE_QUERY_FULFILLED": return {
-      ...state,
-      query: action.payload.query,
-      queryHtml: action.payload.queryHtml,
-      queryError: undefined,
-    }
+    case "CHANGE_QUERY_FULFILLED":
     case "CHANGE_QUERY_REJECTED": return {
       ...state,
-      query: action.payload.query,
-      queryHtml: action.payload.queryHtml,
-      queryError: action.payload.queryError,
+      query: action.payload,
     }
     case "EXECUTE_QUERY_PENDING":
-      printedCount = 0
-      printedMessages = List()
-      nextStoreUpdate = 1
-      return {...state, resultFragments: List(), engineStatus: "executing"}
-    case "EXECUTE_QUERY_FULFILLED": return {...state, engineStatus: "idle", engineError: null}
-    case "EXECUTE_QUERY_REJECTED": return {...state, engineStatus: "idle", engineError: action.payload}
-    case "NOTIFICATION": return {...state, notifications: state.notifications.push(action.payload)}
-    case "LOAD_FILES_PENDING": return {...state, engineStatus: "fileLoading"}
-    case "LOAD_FILES_FULFILLED": return {...state, filePreviews: state.filePreviews.concat(action.payload)}
-    case "LOAD_FILES_REJECTED": return {...state, engineError: action.payload}
-    case "REMOVE_FILE": return {...state, filePreviews: state.filePreviews.filter(file => file.name != action.fileName)}
-    case "SAVE_FILE_PENDING": return {...state, engineStatus: "savingFile"}
-    case "SAVE_FILE_FULFILLED": return {...state, engineStatus: "idle", engineError: null}
-    case "SAVE_FILE_REJECTED": return {...state, engineStatus: "idle", engineError: action.payload}
-    case "APPEND_LOG": return {...state, logMessages: state.logMessages.push(action.msg), logUpdated: true}
-    case "RESET_LOG_UPDATED": return {...state, logUpdated: false}
-    case "PRINT_RESULT": return {...state, resultFragments: state.resultFragments.concat(action.result)}
-    case "ENGINE_ERROR": return {...state, engineStatus: "idle", engineError: action.msg}
+      return {
+        ...state,
+        resultFragments: List(),
+        engineStatus: "executing"
+      }
+    case "EXECUTE_QUERY_FULFILLED": return {
+      ...state,
+      engineStatus: "idle",
+      engineError: null
+    }
+    case "EXECUTE_QUERY_REJECTED": return {
+      ...state,
+      engineStatus: "idle",
+      engineError: action.payload
+    }
+    case "NOTIFICATION": return {
+      ...state,
+      notifications: state.notifications.push(action.payload)
+    }
+    case "LOAD_FILES_PENDING": return {
+      ...state,
+      engineStatus: "fileLoading"
+    }
+    case "LOAD_FILES_FULFILLED": return {
+      ...state,
+      filePreviews: state.filePreviews.concat(List(action.payload))
+    }
+    case "LOAD_FILES_REJECTED": return {
+      ...state,
+      engineError: action.payload
+    }
+    case "REMOVE_FILE": return {
+      ...state,
+      filePreviews: state.filePreviews.filter(file => file.name != action.fileName)
+    }
+    case "SAVE_FILE_PENDING": return {
+      ...state,
+      engineStatus: "savingFile"
+    }
+    case "SAVE_FILE_FULFILLED": return {
+      ...state,
+      engineStatus: "idle",
+      engineError: null
+    }
+    case "SAVE_FILE_REJECTED": return {
+      ...state,
+      engineStatus: "idle",
+      engineError: action.payload
+    }
+    case "APPEND_LOG": return {
+      ...state,
+      logMessages: state.logMessages.push(action.payload),
+      logUpdated: true
+    }
+    case "RESET_LOG_UPDATED": return {
+      ...state,
+      logUpdated: false
+    }
+    case "PRINT_RESULT": return {
+      ...state,
+      resultFragments: state.resultFragments.concat(action.result)
+    }
+    case "ENGINE_ERROR": return {
+      ...state,
+      engineStatus: "idle", engineError: action.msg
+    }
     default: return state;
   }
 };
 
-export const reducers = combineReducers({
-  store: reducer,
-});
-
 const middleware = applyMiddleware(thunkMiddleware, promiseMiddleware)
 
 // Store
-export const store = createStore(reducers, composeWithDevTools({})(middleware))
+export const store = createStore(reducer, composeWithDevTools({})(middleware))
