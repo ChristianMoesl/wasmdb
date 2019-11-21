@@ -44,6 +44,11 @@ function createConnectedWorker() {
 
 let worker = createConnectedWorker()
 
+export type Result = {
+  csvHeader: string,
+  csvData: List<string>,
+}
+
 export type State = typeof initialState
 
 export const initialState = ({
@@ -56,7 +61,7 @@ export const initialState = ({
   filePreviews: List<FilePreview>(),
   logMessages: List<{date: string, msg: string}>(),
   logUpdated: false,
-  resultFragments: List<string>(),
+  result: undefined as (Result | undefined),
   engineStatus: "idle" as EngineStatus,
   engineError: null as (null | string),
 })
@@ -89,7 +94,7 @@ export const executeQuery = () =>
   (dispatch: Dispatch<object>, getState: () => State) => {
     dispatch({
       type: "EXECUTE_QUERY",
-      payload() {return worker("executeQuery", getState().query)}
+      payload() {return worker("executeQuery", getState().query.sql)}
     })
   }
 
@@ -202,7 +207,7 @@ export const saveFile = (fileName: string) =>
     dispatch({
       type: "SAVE_FILE",
       async payload() {
-        const blob = new Blob(state().resultFragments.toJS())
+        const blob = new Blob(List([state().result!.csvHeader]).concat(state().result!.csvData).toJS())
         return saveBlob(fileName, blob)
       }
     })
@@ -236,7 +241,7 @@ export function reducer(state = initialState, action: PossibleAction): State {
     case "EXECUTE_QUERY_PENDING":
       return {
         ...state,
-        resultFragments: List(),
+        result: undefined,
         engineStatus: "executing"
       }
     case "EXECUTE_QUERY_FULFILLED": return {
@@ -257,10 +262,11 @@ export function reducer(state = initialState, action: PossibleAction): State {
       ...state,
       engineStatus: "fileLoading"
     }
-    case "LOAD_FILES_FULFILLED": return {
-      ...state,
-      filePreviews: state.filePreviews.concat(List(action.payload))
-    }
+    case "LOAD_FILES_FULFILLED":
+      return {
+        ...state,
+        filePreviews: state.filePreviews.concat(List(action.payload))
+      }
     case "LOAD_FILES_REJECTED": return {
       ...state,
       engineError: action.payload
@@ -292,10 +298,27 @@ export function reducer(state = initialState, action: PossibleAction): State {
       ...state,
       logUpdated: false
     }
-    case "PRINT_RESULT": return {
-      ...state,
-      resultFragments: state.resultFragments.concat(action.result)
-    }
+    case "PRINT_RESULT":
+      const splitted = action.result.flatMap(fragment => fragment.split("\n"))
+
+      if (state.result) {
+        return {
+          ...state,
+          result: {
+            csvHeader: state.result.csvHeader,
+            csvData: state.result.csvData.concat(splitted),
+          }
+        }
+      } else if (splitted.size > 0) {
+        return {
+          ...state,
+          result: {
+            csvHeader: splitted.get(0)!,
+            csvData: splitted.skip(1),
+          }
+        }
+      } else
+        return state
     case "ENGINE_ERROR": return {
       ...state,
       engineStatus: "idle", engineError: action.msg

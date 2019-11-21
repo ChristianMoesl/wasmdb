@@ -1,12 +1,12 @@
 import * as React from "react";
 import { connect } from "react-redux"
 import { withRouter } from "react-router-dom"
-import { Box, Container, Typography } from "@material-ui/core"
+import { Box, Container, Typography, Paper } from "@material-ui/core"
 import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
 
 import CsvFilePicker from "./csv-file-picker"
 import SqlInput from "./sql-input"
-import CsvTable from "./csv-table"
+import {CsvTable} from "./csv-table"
 
 import { 
   State as StoreState, 
@@ -49,9 +49,14 @@ function Tool(props: ToolProps) {
         changeQuery={props.changeQuery}
         executeQuery={props.executeQuery} />
 
-      <CsvTable 
-        fragments={props.resultFragments}
-        saveFile={props.saveFile} />
+      {props.result && 
+      <Paper style={{ height: 400, width: '100%' }}>
+        <CsvTable 
+          csvHeader={props.result!.csvHeader || ""}
+          csvData={props.result!.csvData}
+          saveFile={props.saveFile} />
+      </Paper>
+      }
     </Container>
     </main>
   )
@@ -62,8 +67,8 @@ function mapStateToProps(state: StoreState) {
     query: state.query,
     filePreviews: state.filePreviews,
     logMessages: state.logMessages,
-    resultFragments: state.resultFragments,
     logUpdated: state.logUpdated,
+    result: state.result,
     engineStatus: state.engineStatus,
     engineError: state.engineError
   }

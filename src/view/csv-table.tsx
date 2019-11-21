@@ -1,51 +1,164 @@
 import React from "react"
 import {List} from "immutable"
-import { VariableSizeList } from "react-window"
 
-export type Props = {
-  fragments: List<string>,
-  delimiter: string,
+import clsx from 'clsx';
+import { createStyles, Theme, withStyles, WithStyles } from '@material-ui/core/styles';
+import TableCell from '@material-ui/core/TableCell';
+import Paper from '@material-ui/core/Paper';
+import { AutoSizer, Column, Table, TableCellRenderer, TableHeaderProps, TableCellDataGetter } from 'react-virtualized';
+
+
+const styles = (theme: Theme) =>
+  createStyles({
+    flexContainer: {
+      display: 'flex',
+      alignItems: 'center',
+      boxSizing: 'border-box',
+    },
+    table: {
+      // temporary right-to-left patch, waiting for
+      // https://github.com/bvaughn/react-virtualized/issues/454
+      '& .ReactVirtualized__Table__headerRow': {
+        flip: false,
+        paddingRight: theme.direction === 'rtl' ? '0px !important' : undefined,
+      },
+    },
+    tableRow: {
+      cursor: 'pointer',
+    },
+    tableRowHover: {
+      '&:hover': {
+        backgroundColor: theme.palette.grey[200],
+      },
+    },
+    tableCell: {
+      flex: 1,
+    },
+    noClick: {
+      cursor: 'initial',
+    },
+  });
+
+interface ColumnData {
+  dataKey: string;
+  label: string;
+  numeric?: boolean;
+  width: number;
+}
+
+interface Row {
+  index: number;
+}
+
+export interface CsvTableProps extends WithStyles<typeof styles> {
+  csvHeader: string,
+  csvData: List<string>,
+  delimiter?: string,
+  headerHeight?: number;
+  rowHeight?: number;
+  onRowClick?: () => void;
   saveFile: (name: string) => void,
 }
 
-export default function CsvTable(props: Props) {
+function CsvTableUnstyled(props: CsvTableProps) {
+  
+  const columns: ColumnData[] = props.csvHeader.split(props.delimiter!)
+    .map((c: string, i: number) => ({ dataKey: i.toString(), label: c, width: 150 }))
+    
+  console.log(columns)
 
-  function calculateRowHeight(idx: number) {
-    return props.fragments.get(idx)!.split(props.delimiter).length * 24
+  const getRowClassName = ({ index }: Row) => {
+    const { classes, onRowClick } = props;
+
+    return clsx(classes.tableRow, classes.flexContainer, {
+      [classes.tableRowHover]: index !== -1 && onRowClick != null,
+    });
+  };
+
+  const cellRenderer: TableCellRenderer = ({ cellData, columnIndex }) => {
+    const { classes, rowHeight, onRowClick } = props;
+    return (
+      <TableCell
+        component="div"
+        className={clsx(classes.tableCell, classes.flexContainer, {
+          [classes.noClick]: onRowClick == null,
+        })}
+        variant="body"
+        style={{ height: rowHeight }}
+        align={(columnIndex != null && columns[columnIndex].numeric) || false ? 'right' : 'left'}
+      >
+        {cellData}
+      </TableCell>
+    )
   }
 
-  return (
-      <section id="result-section">
-        <div className="row">
-          <div className="col-6"><h3>Results</h3></div>
-          <div className="col-6 d-flex justify-content-end">
-            <button className="btn my-button" type="button"
-                    disabled={props.fragments.size === 0}
-                    onClick={ () => props.saveFile("result.csv") }>Save</button>
-          </div>
-        </div>
+  const cellDataGetter: TableCellDataGetter = ({ dataKey, rowData }) =>
+    rowData.split(props.delimiter)[parseInt(dataKey)]
 
-        <figure className="highlight">
-          <VariableSizeList
-          className="List"
-          height={400}
-          itemCount={props.fragments.size}
-          itemSize={idx => calculateRowHeight(idx)}
-          width={"100%"}>
-          {(row: { index: number, style: any }) =>
-              <div style={row.style}>{
-                props.fragments.get(row.index)!.split("\n")
-                .map((line, key) => <div key={key}>{line}</div>)
-              }</div>}
-          </VariableSizeList>
-          <div id="results" style={{ width: "100%" }}></div>
-        </figure>
-      </section>
-  )
+  const headerRenderer = ({ label, columnIndex }: TableHeaderProps & { columnIndex: number }) => {
+    const { headerHeight,  classes } = props;
+
+    return (
+      <TableCell
+        component="div"
+        className={clsx(classes.tableCell, classes.flexContainer, classes.noClick)}
+        variant="head"
+        style={{ height: headerHeight }}
+        align={columns[columnIndex].numeric || false ? 'right' : 'left'}
+      >
+        <span>{label}</span>
+      </TableCell>
+    );
+  };
+
+  const rowGetter = ({ index }: { index: number }) => props.csvData.get(index)
+
+  const { classes,  rowHeight, headerHeight, ...tableProps } = props;
+  return (
+    <AutoSizer>
+      {({ height, width }) => (
+        <Table
+          height={height}
+          width={width}
+          rowHeight={rowHeight!}
+          gridStyle={{
+            direction: 'inherit',
+          }}
+          headerHeight={headerHeight!}
+          className={classes.table}
+          rowCount={props.csvData.size}
+          rowGetter={rowGetter}
+          {...tableProps}
+          rowClassName={getRowClassName}
+        >
+          {columns.map(({ dataKey, ...other }, index) => {
+            return (
+              <Column
+                key={dataKey}
+                headerRenderer={headerProps =>
+                  headerRenderer({
+                    ...headerProps,
+                    columnIndex: index,
+                  })
+                }
+                className={classes.flexContainer}
+                cellRenderer={cellRenderer}
+                cellDataGetter={cellDataGetter}
+                dataKey={dataKey}
+                {...other}
+              />
+            );
+          })}
+        </Table>
+      )}
+    </AutoSizer>
+  );
 }
 
-CsvTable.defaultProps = {
-  fragments: List(),
+CsvTableUnstyled.defaultProps = {
+  headerHeight: 48,
+  rowHeight: 48,
   delimiter: ",",
 }
 
+export const CsvTable = withStyles(styles)(CsvTableUnstyled);
