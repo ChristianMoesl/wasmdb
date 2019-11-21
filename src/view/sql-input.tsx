@@ -1,7 +1,6 @@
 import React, {Component, createRef, useRef, useState, useEffect, RefObject} from "react"
 import {connect} from "react-redux"
 import {withRouter} from "react-router-dom"
-import {VariableSizeList} from "react-window"
 import deepEqual from 'fast-deep-equal';
 import * as PropTypes from 'prop-types';
 import {Button, Box, Container, Grid, Typography, TextField, FormControl, FormControlLabel, FormHelperText, InputLabel, OutlinedInput} from "@material-ui/core"
