@@ -50,7 +50,7 @@ function buildPreview(buffer: ArrayBuffer, numberOfLines: number) {
   let end = 0
   let result = new Array<string>()
 
-  for (let i = 0; i < numberOfLines; i++) {
+  for (let i = 0; i < numberOfLines && start < view.length; i++) {
     end = findEndOFLine(buffer, start)
 
     const line = decoder.decode(view.subarray(start, end))
