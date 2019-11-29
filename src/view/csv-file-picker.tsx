@@ -1,8 +1,23 @@
 import React, { Component } from "react"
 import {List} from "immutable"
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles'
-import { Box, Button, Paper, Grid, Table, TableRow, TableCell, Typography, TableBody, Icon } from "@material-ui/core"
-import { Add } from "@material-ui/icons"
+import { 
+  Box, 
+  Button, 
+  IconButton,
+  Paper, 
+  Grid, 
+  Table, 
+  TableRow, 
+  TableCell, 
+  Typography, 
+  TableBody, 
+  Icon 
+} from "@material-ui/core"
+import { 
+  Add as AddIcon,
+  DeleteRounded as DeleteIcon,
+} from "@material-ui/icons"
 import { State as StoreState, loadFiles, removeFile, FilePreview } from "../store"
 
 const useTableStyles = makeStyles((theme: Theme) =>
@@ -23,6 +38,16 @@ const useTableStyles = makeStyles((theme: Theme) =>
   paper: {
     padding: theme.spacing(2),
     color: theme.palette.text.secondary,
+  },
+  deleteButton: {
+    position: "relative",
+    top: -30,
+    left: -30,
+    height: 40,
+    width: 40,
+    minWidth: 0,
+    minHeight: 0,
+    borderRadius: 20,
   },
 }))
 
@@ -79,6 +104,13 @@ function FilePreviewTable(props: FilePreviewProps) {
         sm={sm(props.file.contentPreview)}
         md={md(props.file.contentPreview)}>
     <Paper className={classes.paper}>
+      <Button 
+        className={classes.deleteButton}
+        variant="contained"
+        color="secondary"
+        onClick={ () => props.removeFile(props.file.name) } >
+        <DeleteIcon />
+      </Button>
       <Typography className={classes.title} variant="h6" id="tableTitle">
         {props.file.name}
       </Typography>
@@ -96,9 +128,6 @@ function FilePreviewTable(props: FilePreviewProps) {
           </TableBody>
         </Table>
       </Box>
-      <Button variant="outlined" onClick={ () => props.removeFile(props.file.name) } >
-        X
-      </Button>
     </Paper>
   </Grid>
   )
@@ -147,7 +176,7 @@ export default function CsvFilePicker(props: Props) {
             />
             <label htmlFor="file-add-button">
               <Button variant="contained" component="span" fullWidth>
-                <Add />
+                <AddIcon />
               </Button>
             </label>
           </Grid>
@@ -157,7 +186,7 @@ export default function CsvFilePicker(props: Props) {
   )
 }
 
-CsvFilePicker.defaultProps = { 
+CsvFilePicker.defaultProps = {
   disabled: false,
   filePreviews: List<FilePreview>(),
   loadFiles: () => { },
