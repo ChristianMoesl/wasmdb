@@ -129,32 +129,39 @@ function stripWhitespaces(text: string) {
 }
 
 export type ChangeQueryAction =
-  {type: "CHANGE_QUERY_PENDING"} |
-  {type: "CHANGE_QUERY_FULFILLED", payload: QueryState} |
-  {type: "CHANGE_QUERY_REJECTED", error: true, payload: QueryState}
+  {type: "CHANGE_QUERY", payload: {sql: string, htmlRepresentation: string}} |
+  {type: "QUERY_PARSER_ERROR", error: true, payload: string}
 
-export const changeQuery = (query: string) => ({
-  type: "CHANGE_QUERY",
-  payload: new Promise((resolve, reject) => {
-    const parts = stripWhitespaces(query)
+export const changeQuery = (query: string) => (dispatch: any) => {
+  const parts = stripWhitespaces(query)
 
-    try {
-      const colored = parse(parts[1])
+  try {
+    const colored = parse(parts[1])
 
-      resolve({
+    dispatch({
+      type: "CHANGE_QUERY",
+      payload: {
         sql: query,
         htmlRepresentation: textToHtml(parts[0] + colored + parts[2]) + "<br>",
-        parserError: undefined,
+      },
+    })
+  } catch (e) {
+    batch(() => {
+      dispatch({
+        type: "CHANGE_QUERY",
+        payload: {
+          sql: query,
+          htmlRepresentation: textToHtml(query) + "<br>",
+        }
       })
-    } catch (e) {
-      reject({
-        sql: query,
-        htmlRepresentation: textToHtml(query) + "<br>",
-        parserError: (e as SyntaxError).message,
+      dispatch({
+        type: "QUERY_PARSER_ERROR",
+        error: true,
+        payload: (e as SyntaxError).message,
       })
-    }
-  })
-})
+    })
+  }
+}
 
 
 export type PrintResultAction = {type: "PRINT_RESULT", result: List<string>};
@@ -232,11 +239,19 @@ type PossibleAction = PrintResultAction
 // Reducer
 export function reducer(state = initialState, action: PossibleAction): State {
   switch (action.type) {
-    case "CHANGE_QUERY_PENDING": return state
-    case "CHANGE_QUERY_FULFILLED":
-    case "CHANGE_QUERY_REJECTED": return {
+    case "CHANGE_QUERY": return {
       ...state,
-      query: action.payload,
+      query: {
+        ...action.payload,
+        parserError: undefined,
+      }
+    }
+    case "QUERY_PARSER_ERROR": return {
+      ...state,
+      query: {
+        ...state.query,
+        parserError: action.payload,
+      }
     }
     case "EXECUTE_QUERY_PENDING":
       return {

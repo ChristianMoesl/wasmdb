@@ -1,10 +1,39 @@
-import React, {Component, createRef, useRef, useState, useEffect, RefObject} from "react"
-import {connect} from "react-redux"
-import {withRouter} from "react-router-dom"
-import deepEqual from 'fast-deep-equal';
-import * as PropTypes from 'prop-types';
-import {Button, Box, Container, Grid, Typography, TextField, FormControl, FormControlLabel, FormHelperText, InputLabel, OutlinedInput} from "@material-ui/core"
-import {makeStyles, useTheme, Theme, createStyles, ThemeProvider} from '@material-ui/core/styles'
+import React, {
+  PropsWithChildren,
+  Component,
+  useRef,
+  useState,
+} from "react"
+
+import deepEqual from 'fast-deep-equal'
+import * as PropTypes from 'prop-types'
+
+import {
+  Paper,
+  Button,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  Input,
+  IconButton,
+  Divider,
+  ExpansionPanel,
+  ExpansionPanelSummary,
+  ExpansionPanelDetails,
+  Box,
+  TextField,
+} from "@material-ui/core"
+
+import {
+  makeStyles,
+  createStyles,
+  Theme,
+} from '@material-ui/core/styles'
+
+import {
+  Directions as DirectionsIcon,
+  ExpandMore as ExpandMoreIcon,
+} from "@material-ui/icons"
 
 
 // no operation
@@ -18,41 +47,41 @@ const noop = () => null
  */
 //@ts-ignore
 function selectionSaveCaretPosition(container) {
-  const selection = window.getSelection();
+  const selection = window.getSelection()
 
   if (!selection || selection.rangeCount === 0) {
-    return noop;
+    return noop
   }
 
-  const range = selection.getRangeAt(0);
-  const clone = range.cloneRange();
+  const range = selection.getRangeAt(0)
+  const clone = range.cloneRange()
 
   // find the range start index
-  clone.selectNodeContents(container);
-  clone.setStart(container, 0);
-  clone.setEnd(range.startContainer, range.startOffset);
-  let startIndex = clone.toString().length;
+  clone.selectNodeContents(container)
+  clone.setStart(container, 0)
+  clone.setEnd(range.startContainer, range.startOffset)
+  let startIndex = clone.toString().length
 
   // find the range end index
-  clone.selectNodeContents(container);
-  clone.setStart(container, 0);
-  clone.setEnd(range.endContainer, range.endOffset);
-  const endIndex = clone.toString().length;
+  clone.selectNodeContents(container)
+  clone.setStart(container, 0)
+  clone.setEnd(range.endContainer, range.endOffset)
+  const endIndex = clone.toString().length
 
   return function restoreCaretPosition() {
-    const start = getTextNodeAtPosition(container, startIndex);
-    const end = getTextNodeAtPosition(container, endIndex);
-    const newRange = new Range();
+    const start = getTextNodeAtPosition(container, startIndex)
+    const end = getTextNodeAtPosition(container, endIndex)
+    const newRange = new Range()
 
-    newRange.setStart(start.node, start.position);
-    newRange.setEnd(end.node, end.position);
+    newRange.setStart(start.node, start.position)
+    newRange.setEnd(end.node, end.position)
 
-    selection.removeAllRanges();
-    selection.addRange(newRange);
-    container.focus();
+    selection.removeAllRanges()
+    selection.addRange(newRange)
+    container.focus()
 
-  };
-};
+  }
+}
 
 /**
  * @function
@@ -68,21 +97,21 @@ function getTextNodeAtPosition(rootEl, index) {
   //@ts-ignore
   const treeWalker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, function next(elem) {
     if (index > elem.textContent.length) {
-      index -= elem.textContent.length;
-      return NodeFilter.FILTER_REJECT;
+      index -= elem.textContent.length
+      return NodeFilter.FILTER_REJECT
     }
-    return NodeFilter.FILTER_ACCEPT;
-  });
-  const node = treeWalker.nextNode();
+    return NodeFilter.FILTER_ACCEPT
+  })
+  const node = treeWalker.nextNode()
 
   return {
     node: node ? node : rootEl,
     position: node ? index : 0,
-  };
-};
+  }
+}
 
 function normalizeHtml(str: string): string {
-  return str && str.replace(/&nbsp;|\u202F|\u00A0/g, ' ');
+  return str && str.replace(/&nbsp|\u202F|\u00A0/g, ' ')
 }
 
 function htmlToText(html: string) {
@@ -91,27 +120,30 @@ function htmlToText(html: string) {
     .replace(/<[^>]*>/g, '')
 }
 
-type ContentEditableEvent = React.SyntheticEvent<any, Event> & {target: {value: string}};
-type Modify<T, R> = Pick<T, Exclude<keyof T, keyof R>> & R;
-type DivProps = Modify<JSX.IntrinsicElements["div"], {onChange: ((event: ContentEditableEvent) => void)}>;
+type ContentEditableEvent = React.SyntheticEvent<any, Event> & {target: {value: string}}
+type Modify<T, R> = Pick<T, Exclude<keyof T, keyof R>> & R
+type DivProps = Modify<JSX.IntrinsicElements["div"], {onChange: ((event: ContentEditableEvent) => void)}>
 
 
-interface EditableProps extends DivProps {
+interface EditableProps {
   value: string,
-  onChange: (event: {target: {value: string}}) => void
+  inputRef: (ref: HTMLInputElement | null) => void,
   disabled?: boolean,
   tagName?: string,
   className?: string,
   style?: Object,
-  inputRef?: React.RefObject<HTMLElement> | Function,
-  changeQuery: (query: string, error?: string) => void,
+  changeQuery: (query: string) => void,
 }
 
 
 class ContentEditable extends Component<EditableProps> {
-  el: any = typeof this.props.inputRef === 'function' ? {current: null} : React.createRef<HTMLElement>();
+  el: any = typeof this.props.inputRef === 'function' ? {current: null} : React.createRef<HTMLElement>()
 
-  getEl = () => (this.props.inputRef && typeof this.props.inputRef !== 'function' ? this.props.inputRef : this.el).current;
+  getEl = () => (this.props.inputRef && typeof this.props.inputRef !== 'function' ? this.props.inputRef : this.el).current
+
+  constructor(props: EditableProps) {
+    super(props)
+  }
 
 
   //useEffect(() => {
@@ -121,81 +153,84 @@ class ContentEditable extends Component<EditableProps> {
 
   handleInput(event: React.ChangeEvent<HTMLInputElement>) {
     const sql = htmlToText(event.target.innerHTML)
+
     this.props.changeQuery(sql)
   }
 
   render() {
-    const {tagName, value, inputRef, changeQuery, ...props} = this.props;
+    const {tagName, value, inputRef, changeQuery, ...props} = this.props
     return React.createElement(
       tagName || 'div',
       {
         ...props,
         ref: typeof inputRef === 'function' ? (current: HTMLInputElement) => {
-            inputRef(current)
-            this.el.current = current
-          } : inputRef || this.el,
-          onInput: (event: any) => this.handleInput(event),
-          //onChange: this.handleInput,
-          //onBlur: this.props.onBlur || this.handleInput,
-          //onKeyUp: this.props.onKeyUp || this.handleInput,
-          //onKeyDown: this.props.onKeyDown || this.handleInput,
-          contentEditable: true,
-          dangerouslySetInnerHTML: {__html: value}
-        },
-        this.props.children);
-    }
-
-
-    shouldComponentUpdate(nextProps: EditableProps): boolean {
-      const {props} = this;
-      const el = this.getEl();
-
-      // We need not rerender if the change of props simply reflects the user's edits.
-      // Rerendering in this case would make the cursor/caret jump
-
-      // Rerender if there is no element yet... (somehow?)
-      if (!el) return true;
-
-      // Check if the html is updated
-      if (el.innerHTML !== nextProps.value) return true
-
-      // Handle additional properties
-      return props.disabled !== nextProps.disabled ||
-        props.tagName !== nextProps.tagName ||
-        props.className !== nextProps.className ||
-        props.inputRef !== nextProps.inputRef ||
-        !deepEqual(props.style, nextProps.style);
-    }
-
-    getSnapshotBeforeUpdate(prevProps: any) {
-      if (!this.getEl()) return noop
-      return selectionSaveCaretPosition(this.getEl())
-    }
-
-    componentDidUpdate(prevProps: any, __: any, restoreSelection: () => void) {
-      const el = this.getEl();
-      if (!el) return;
-
-      restoreSelection()
+          inputRef(current)
+          this.el.current = current
+        } : inputRef || this.el,
+        onInput: (event: any) => { this.handleInput(event) },
+        onClick: (event: any) => { event.stopPropagation() },
+        onFocus: (event: any) => { event.stopPropagation() },
+        //onChange: this.handleInput,
+        //onBlur: this.props.onBlur || this.handleInput,
+        //onKeyUp: this.props.onKeyUp || this.handleInput,
+        //onKeyDown: this.props.onKeyDown || this.handleInput,
+        contentEditable: true,
+        dangerouslySetInnerHTML: {__html: value}
+      },
+      this.props.children)
   }
 
-  emitChange = (originalEvt: React.SyntheticEvent<any>) => {
-    const el = this.getEl();
+
+  shouldComponentUpdate(nextProps: EditableProps): boolean {
+    const {props} = this
+    const el = this.getEl()
+
+    // We need not rerender if the change of props simply reflects the user's edits.
+    // Rerendering in this case would make the cursor/caret jump
+
+    // Rerender if there is no element yet... (somehow?)
+    if (!el) return true
+
+    // Check if the html is updated
+    if (el.innerHTML !== nextProps.value) return true
+
+    // Handle additional properties
+    return props.disabled !== nextProps.disabled ||
+      props.tagName !== nextProps.tagName ||
+      props.className !== nextProps.className ||
+      props.inputRef !== nextProps.inputRef ||
+      !deepEqual(props.style, nextProps.style)
+  }
+
+  getSnapshotBeforeUpdate(prevProps: any) {
+    if (!this.getEl()) return noop
+    return selectionSaveCaretPosition(this.getEl())
+  }
+
+  componentDidUpdate(prevProps: any, __: any, restoreSelection: () => void) {
+    const el = this.getEl()
     if (!el) return;
 
-    //const html = el.innerHTML;
-    //if (this.props.onChange && html !== this.lastHtml) {
-      //// Clone event with Object.assign to avoid
-      //// "Cannot assign to read only property 'target' of object"
-      //const evt = Object.assign({}, originalEvt, {
-        //target: {
-          //value: html
-        //}
-      //});
-      //this.props.onChange(evt);
-    //}
-    //this.lastHtml = html;
+    restoreSelection()
   }
+
+  //emitChange = (originalEvt: React.SyntheticEvent<any>) => {
+    //const el = this.getEl()
+    //if (!el) return
+
+    ////const html = el.innerHTML
+    ////if (this.props.onChange && html !== this.lastHtml) {
+    ////// Clone event with Object.assign to avoid
+    ////// "Cannot assign to read only property 'target' of object"
+    ////const evt = Object.assign({}, originalEvt, {
+    ////target: {
+    ////value: html
+    ////}
+    ////})
+    ////this.props.onChange(evt)
+    ////}
+    ////this.lastHtml = html
+  //}
 
   static propTypes = {
     value: PropTypes.string.isRequired,
@@ -212,6 +247,42 @@ class ContentEditable extends Component<EditableProps> {
   }
 }
 
+const useStyles = makeStyles((theme: Theme) =>
+  createStyles({
+    root: {
+      padding: '2px 4px',
+      display: 'flex',
+      alignItems: 'center',
+      width: 400,
+    },
+    panelSummaryContent: {
+      width: '100%',
+    },
+    input: {
+      width: '100%',
+      marginTop: 16,
+    },
+    inputWrapper: {
+      display: 'flex',
+      width: '100%',
+      flexWrap: 'wrap',
+    },
+    inputLabel: {
+
+    },
+    iconButton: {
+      padding: 10,
+    },
+    divider: {
+      height: 'auto',
+      margin: 4,
+    },
+    formHelperText: {
+      width: '100%',
+    }
+  }),
+)
+
 
 export type QueryState = {
   sql: string,
@@ -219,49 +290,89 @@ export type QueryState = {
   parserError?: string,
 }
 
-export type Props = {
+
+export interface Props {
   query: QueryState,
   changeQuery: (sql: string) => void,
   executeQuery: () => void,
 }
 
-export default function SqlInput(props: Props) {
+export default function SqlInput(props: PropsWithChildren<Props>) {
   const [labelWidth, setLabelWidth] = useState(0)
   const [syntaxError, setSyntaxError] = useState("")
   const labelRef = useRef<HTMLLabelElement>(null)
+  const classes = useStyles()
 
+    //<Paper className={classes.root}>
+    //</Paper>
   return (
-    <div style={{width: "100%"}}>
-      <FormControl variant="outlined">
-        <InputLabel ref={labelRef} htmlFor="component-outlined">
-          Name
-          </InputLabel>
-        <OutlinedInput
-          id="component-outlined"
-          labelWidth={labelWidth}
-          value={props.query.htmlRepresentation}
-          fullWidth
-          error={props.query.parserError !== undefined}
-          inputComponent={ContentEditable as any}
-          inputProps={{
-            changeQuery: props.changeQuery,
-            fullwidth: "true",
-          }}
-        />
-        {props.query.parserError &&
-        <FormHelperText>
-          {props.query.parserError}
-        </FormHelperText>
-        }
-      </FormControl>
-      <div>
-      </div>
-      <Button variant="contained"
-        color="primary"
-        disabled={props.query.parserError !== undefined}
-        onClick={ () => { props.executeQuery() }}  >
-        Process
-        </Button>
-    </div>
+      <ExpansionPanel>
+        <ExpansionPanelSummary
+          expandIcon={<ExpandMoreIcon />}
+          aria-label="Expand"
+          aria-controls="additional-actions1-content"
+          id="additional-actions1-header"
+        >
+          <FormControl 
+            fullWidth 
+            style={{ flexDirection: "unset" }}
+            error={props.query.parserError !== undefined}
+          >
+            <Box className={classes.inputWrapper}>
+              <Input
+                id="input-text-field"
+                className={classes.input}
+                value={props.query.htmlRepresentation}
+                inputComponent={ContentEditable as any}
+                inputProps={{
+                  changeQuery: props.changeQuery,
+                  fullwidth: "true",
+                }}
+              />
+              <InputLabel
+                className={classes.inputLabel}
+                htmlFor="input-text-field"
+              >
+                SQL Query
+              </InputLabel>
+              <FormHelperText className={classes.formHelperText}>
+                {props.query.parserError || ""}
+              </FormHelperText>
+            </Box>
+            <Divider 
+              className={classes.divider} 
+              orientation="vertical" 
+              onClick={ (event: any) => { event.stopPropagation() }}
+              onFocus={ (event: any) => { event.stopPropagation() }}
+            />
+            <IconButton 
+              type="submit" 
+              color="primary" 
+              className={classes.iconButton} 
+              disabled={props.query.parserError !== undefined}
+              onSubmit={ () => { props.executeQuery() } }
+              onClick={ (event: any) => { 
+                props.executeQuery()
+                event.stopPropagation() 
+              }}
+              onFocus={ (event: any) => { event.stopPropagation() }}
+              aria-label="directions">
+              <DirectionsIcon />
+            </IconButton>
+          </FormControl>
+        </ExpansionPanelSummary>
+        <ExpansionPanelDetails>
+          {props.children}
+        </ExpansionPanelDetails>
+      </ExpansionPanel>
   )
 }
+      //<Button variant="contained"
+        //color="primary"
+        //disabled={props.query.parserError !== undefined}
+        //onClick={() => {props.executeQuery()}}  >
+        //Process
+        //</Button>
+        //<InputLabel ref={labelRef} htmlFor="component-outlined">
+          //Name
+        //<3/InputLabel>

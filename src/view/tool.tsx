@@ -7,6 +7,7 @@ import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
 import CsvFilePicker from "./csv-file-picker"
 import SqlInput from "./sql-input"
 import {CsvTable} from "./csv-table"
+import {Log} from "./log"
 
 import { 
   State as StoreState, 
@@ -28,35 +29,39 @@ function Tool(props: ToolProps) {
   return (
     <main>
     <Container maxWidth="md">
-      <Box>
+      <Box my={1}>
         <Typography variant="h4">
           Tables
         </Typography>
       </Box>
+      <Box mb={3}>
       <CsvFilePicker 
         filePreviews={props.filePreviews}
         loadFiles={props.loadFiles}
         removeFile={props.removeFile} />
-
-      <Box>
-        <Typography variant="h4">
-          Tables
-        </Typography>
       </Box>
-      
-     <SqlInput 
-        query={props.query}
-        changeQuery={props.changeQuery}
-        executeQuery={props.executeQuery} />
 
-      {props.result && 
-      <Paper style={{ height: 400, width: '100%' }}>
-        <CsvTable 
-          csvHeader={props.result!.csvHeader || ""}
-          csvData={props.result!.csvData}
-          saveFile={props.saveFile} />
-      </Paper>
-      }
+      <Box width={1} mb={3}>
+        <SqlInput 
+          query={props.query}
+          changeQuery={props.changeQuery}
+          executeQuery={props.executeQuery}>
+          <Log
+            title="Log"
+            messages={props.logMessages}
+          />
+        </SqlInput>
+       </Box>
+
+       {props.result && 
+        <Box my={3}>
+          <Paper style={{ height: 400, width: '100%' }}>
+            <CsvTable 
+              csvHeader={props.result!.csvHeader || ""}
+              csvData={props.result!.csvData}
+              saveFile={props.saveFile} />
+          </Paper>
+        </Box>}
     </Container>
     </main>
   )
