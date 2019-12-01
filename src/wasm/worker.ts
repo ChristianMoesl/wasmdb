@@ -91,7 +91,7 @@ module.exports = function (self: any) {
           break
       }
     } catch (e) {
-      postResponse({type: "error", answers: request.command, payload: e.toString()})
+      postResponse({type: "error", answers: request.command, payload: e.message})
     }
   }
 
@@ -124,7 +124,7 @@ module.exports = function (self: any) {
 
         log(`finished execution`)
       } else {
-        log(`received error ${response.status}`)
+        throw new Error(`received error ${response.status}`)
       }
     } finally {
       flushOutputBuffer();

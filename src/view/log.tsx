@@ -27,6 +27,7 @@ const useStyles = makeStyles((theme: Theme) =>
 export type LogMessage = {
   date: string,
   msg: string,
+  error: boolean,
 }
 
 export interface Props {
@@ -41,7 +42,7 @@ export function Log(props: Props) {
     <div className={classes.root}>
       <ListContainer>
         {props.messages.map((m, i) => (
-          <Typography key={i}>
+          <Typography key={i} color={m.error ? "error" : "primary"}>
             <Box display="flex">
               <Box fontFamily="Monospace" fontWeight="fontWeightMedium">{m.date}</Box>
               <Box fontFamily="Monospace" fontWeight="fontWeightMedium">{m.msg}</Box>

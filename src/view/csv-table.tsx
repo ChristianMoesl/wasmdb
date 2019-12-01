@@ -64,8 +64,6 @@ function CsvTableUnstyled(props: CsvTableProps) {
   
   const columns: ColumnData[] = props.csvHeader.split(props.delimiter!)
     .map((c: string, i: number) => ({ dataKey: i.toString(), label: c, width: 150 }))
-    
-  console.log(columns)
 
   const getRowClassName = ({ index }: Row) => {
     const { classes, onRowClick } = props;

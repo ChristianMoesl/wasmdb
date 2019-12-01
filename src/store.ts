@@ -14,6 +14,7 @@ import {
 import {parse} from "./util/sql-parser"
 import {saveBlob} from "./util/blob-save"
 import {QueryState} from "./view/sql-input"
+import {LogMessage} from "./view/log"
 import {createWasmWorker, FilePreview, EngineStatus} from "./wasm/master"
 export {FilePreview} from "./wasm/master"
 
@@ -60,15 +61,15 @@ export const initialState = ({
   notifications: List<string>(),
   filePreviews: List<FilePreview>(),
   logDisplayed: false,
-  logMessages: List<{date: string, msg: string}>(),
+  logMessages: List<LogMessage>(),
   result: undefined as (Result | undefined),
   engineStatus: "idle" as EngineStatus,
   engineError: null as (null | string),
 })
 
 // Actions
-export type AppendLogAction = {type: "APPEND_LOG", error: false, payload: {date: string, msg: string}}
-export function appendLog(msg: string) {
+export type AppendLogAction = {type: "APPEND_LOG", payload: {date: string, msg: string, error: boolean}}
+export function appendLog(msg: string, error = false) {
   const date = new Date();
   const hours = date.getHours().toString().padStart(2, "0");
   const minutes = date.getMinutes().toString().padStart(2, "0");
@@ -77,10 +78,10 @@ export function appendLog(msg: string) {
 
   return {
     type: "APPEND_LOG",
-    error: false,
     payload: {
       date: "[" + hours + ":" + minutes + ":" + seconds + ":" + milliseconds + "]",
-      msg
+      msg,
+      error,
     }
   }
 }
@@ -93,14 +94,15 @@ export const hideLog = () => ({type: "HIDE_LOG", payload: {}})
 
 type ExecuteQueryAction =
   {type: "EXECUTE_QUERY_PENDING"} |
-  {type: "EXECUTE_QUERY_FULFILLED", payload: {}} |
-  {type: "EXECUTE_QUERY_REJECTED", error: true, payload: string}
+  {type: "EXECUTE_QUERY_FULFILLED", payload: {}}
 
 export const executeQuery = () =>
   (dispatch: Dispatch<object>, getState: () => State) => {
     dispatch({
       type: "EXECUTE_QUERY",
-      payload() {return worker("executeQuery", getState().query.sql)}
+      payload: worker("executeQuery", getState().query.sql).catch((error: any) => {
+        dispatch(appendLog(error, true))
+      })
     })
   }
 
@@ -274,11 +276,6 @@ export function reducer(state = initialState, action: PossibleAction): State {
       ...state,
       engineStatus: "idle",
       engineError: null
-    }
-    case "EXECUTE_QUERY_REJECTED": return {
-      ...state,
-      engineStatus: "idle",
-      engineError: action.payload
     }
     case "NOTIFICATION": return {
       ...state,
