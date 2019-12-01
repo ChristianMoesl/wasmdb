@@ -54,7 +54,7 @@
     "test": "mocha -r ts-node/register tests/**/*.spec.ts",
     "build": "npm run build:ts",
     "build-prod": "npm run build:ts-prod && npm run build:scss-prod",
-    "watch": "watchify src/app.tsx -v -p [ tsify --noImplicitAny ] -o dist/bundle.js",
+    "watch": "watchify src/app.tsx -v -p [ tsify --noImplicitAny ] -o dist/bundle.js --debug",
     "build:ts": "browserify src/app.tsx -p [ tsify --noImplicitAny ] > dist/bundle.js",
     "build:ts-prod": "NODE_ENV=production browserify app/scripts/app.tsx -p tsify -t [ envify --NODE_ENV production ] -t uglifyify | terser --compress --mangle > dist/bundle.js",
     "build:parser": "pegjs --plugin ./node_modules/ts-pegjs/src/tspegjs.js -o src/util/sql-parser.ts src/util/sql-grammar.pegjs",
