@@ -12,8 +12,9 @@ import {Log} from "./log"
 import { 
   State as StoreState, 
   changeQuery, 
+  showLog,
+  hideLog,
   appendLog, 
-  resetLogUpdated, 
   loadFiles,
   saveFile,
   removeFile,
@@ -26,6 +27,11 @@ type ToolProps =
   ReturnType<typeof mapDispatchToProps>
 
 function Tool(props: ToolProps) {
+  function handleLogExpansionChange(event: object, expanded: boolean) {
+    if (expanded) props.showLog()
+    else props.hideLog()
+  }
+
   return (
     <main>
     <Container maxWidth="md">
@@ -45,7 +51,10 @@ function Tool(props: ToolProps) {
         <SqlInput 
           query={props.query}
           changeQuery={props.changeQuery}
-          executeQuery={props.executeQuery}>
+          executeQuery={props.executeQuery}
+          expanded={props.logDisplayed}
+          onExpansionChange={handleLogExpansionChange}
+          >
           <Log
             title="Log"
             messages={props.logMessages}
@@ -72,7 +81,7 @@ function mapStateToProps(state: StoreState) {
     query: state.query,
     filePreviews: state.filePreviews,
     logMessages: state.logMessages,
-    logUpdated: state.logUpdated,
+    logDisplayed: state.logDisplayed,
     result: state.result,
     engineStatus: state.engineStatus,
     engineError: state.engineError
@@ -87,7 +96,8 @@ function mapDispatchToProps(dispatch: React.Dispatch<any>) {
     saveFile: (name:  string) => dispatch(saveFile(name)),
     removeFile: (name: string) => dispatch(removeFile(name)),
     appendLog: (msg: string) =>  dispatch(appendLog(msg)),
-    resetLogUpdated: () => dispatch(resetLogUpdated()),
+    showLog: () => dispatch(showLog()),
+    hideLog: () => dispatch(hideLog()),
   }
 }
 

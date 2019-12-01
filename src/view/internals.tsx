@@ -2,15 +2,12 @@ import React, { Component } from "react";
 import { connect } from "react-redux"
 import { withRouter } from "react-router-dom"
 import { List } from "immutable"
-import { State as StoreState, resetLogUpdated } from "../store"
+import { State as StoreState } from "../store"
 
 type InternalsActionProps = {
-  resetLogUpdated: () => void
 }
 
 type InternalsStoreProps = {
-  logMessages: List<{ date: string, msg: string }>
-  logUpdated: boolean
 }
 
 type InternalsProps = InternalsActionProps & InternalsStoreProps
@@ -64,14 +61,11 @@ class Internals extends Component<InternalsProps> {
  
 function mapDispatchToProps(dispatch: React.Dispatch<any>): InternalsActionProps {
   return {
-    resetLogUpdated: () => dispatch(resetLogUpdated())
   }
 }
 
 function mapStateToProps(state: { store: StoreState }): InternalsStoreProps {
   return {
-    logMessages: state.store.logMessages,
-    logUpdated: state.store.logUpdated
   }
 }
 

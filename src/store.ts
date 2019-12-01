@@ -59,8 +59,8 @@ export const initialState = ({
   } as QueryState,
   notifications: List<string>(),
   filePreviews: List<FilePreview>(),
+  logDisplayed: false,
   logMessages: List<{date: string, msg: string}>(),
-  logUpdated: false,
   result: undefined as (Result | undefined),
   engineStatus: "idle" as EngineStatus,
   engineError: null as (null | string),
@@ -85,6 +85,12 @@ export function appendLog(msg: string) {
   }
 }
 
+export type ShowLogAction = {type: "SHOW_LOG", payload: {}}
+export type HideLogAction = {type: "HIDE_LOG", payload: {}}
+
+export const showLog = () => ({type: "SHOW_LOG", payload: {}})
+export const hideLog = () => ({type: "HIDE_LOG", payload: {}})
+
 type ExecuteQueryAction =
   {type: "EXECUTE_QUERY_PENDING"} |
   {type: "EXECUTE_QUERY_FULFILLED", payload: {}} |
@@ -97,9 +103,6 @@ export const executeQuery = () =>
       payload() {return worker("executeQuery", getState().query.sql)}
     })
   }
-
-export type ResetLogUpdatedAction = {type: "RESET_LOG_UPDATED"}
-export function resetLogUpdated() {return {type: "RESET_LOG_UPDATED"}}
 
 type AbortExecutionAction = {type: "ABORT_EXECUTION"}
 export const abortExecution: () => AbortExecutionAction = () => {
@@ -162,7 +165,6 @@ export const changeQuery = (query: string) => (dispatch: any) => {
     })
   }
 }
-
 
 export type PrintResultAction = {type: "PRINT_RESULT", result: List<string>};
 export function printResult(result: List<string>) {return {type: "PRINT_RESULT", result}}
@@ -227,9 +229,10 @@ export const engineError: (msg: string) => EngineErrorAction
 
 type PossibleAction = PrintResultAction
   | AppendLogAction
+  | ShowLogAction
+  | HideLogAction
   | ChangeQueryAction
   | ExecuteQueryAction
-  | ResetLogUpdatedAction
   | NotificationAction
   | LoadFilesAction
   | RemoveFileAction
@@ -239,6 +242,14 @@ type PossibleAction = PrintResultAction
 // Reducer
 export function reducer(state = initialState, action: PossibleAction): State {
   switch (action.type) {
+    case "SHOW_LOG": return {
+      ...state,
+      logDisplayed: true,
+    }
+    case "HIDE_LOG": return {
+      ...state,
+      logDisplayed: false,
+    }
     case "CHANGE_QUERY": return {
       ...state,
       query: {
@@ -307,11 +318,7 @@ export function reducer(state = initialState, action: PossibleAction): State {
     case "APPEND_LOG": return {
       ...state,
       logMessages: state.logMessages.push(action.payload),
-      logUpdated: true
-    }
-    case "RESET_LOG_UPDATED": return {
-      ...state,
-      logUpdated: false
+      logDisplayed: true
     }
     case "PRINT_RESULT":
       const splitted = action.result.flatMap(fragment => fragment.split("\n"))

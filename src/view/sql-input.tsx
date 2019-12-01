@@ -34,6 +34,7 @@ import {
   Directions as DirectionsIcon,
   ExpandMore as ExpandMoreIcon,
 } from "@material-ui/icons"
+import {hideLog} from "../store"
 
 
 // no operation
@@ -290,11 +291,12 @@ export type QueryState = {
   parserError?: string,
 }
 
-
 export interface Props {
   query: QueryState,
   changeQuery: (sql: string) => void,
   executeQuery: () => void,
+  expanded: boolean,
+  onExpansionChange: (event: object, expanded: boolean) => void,
 }
 
 export default function SqlInput(props: PropsWithChildren<Props>) {
@@ -306,7 +308,10 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
     //<Paper className={classes.root}>
     //</Paper>
   return (
-      <ExpansionPanel>
+      <ExpansionPanel
+        expanded={props.expanded}
+        onChange={props.onExpansionChange}
+      >
         <ExpansionPanelSummary
           expandIcon={<ExpandMoreIcon />}
           aria-label="Expand"
@@ -317,6 +322,8 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
             fullWidth 
             style={{ flexDirection: "unset" }}
             error={props.query.parserError !== undefined}
+            onClick={ (event: any) => { event.stopPropagation() }}
+            onFocus={ (event: any) => { event.stopPropagation() }}
           >
             <Box className={classes.inputWrapper}>
               <Input
