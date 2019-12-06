@@ -50,6 +50,9 @@
     "uglifyify": "^5.0.2",
     "watchify": "^3.11.1"
   },
+  "optionalDependencies": {
+    "fsevents": "^2.1.2"
+  },
   "scripts": {
     "test": "mocha -r ts-node/register tests/**/*.spec.ts",
     "build": "npm run build:ts",
