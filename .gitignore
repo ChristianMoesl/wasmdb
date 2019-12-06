@@ -1,4 +1,2 @@
 node_modules/*
 dist/bundle.js
-dist/styles.css
-package-lock.json
