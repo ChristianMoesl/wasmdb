@@ -141,7 +141,7 @@ export const changeQuery = (query: string) => (dispatch: any) => {
   const parts = stripWhitespaces(query)
 
   try {
-    const colored = parse(parts[1])
+    const colored = parts[1] === "" ? "" : parse(parts[1])
 
     dispatch({
       type: "CHANGE_QUERY",
