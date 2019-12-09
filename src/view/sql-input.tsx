@@ -1,17 +1,14 @@
 import React, {
   PropsWithChildren,
   Component,
-  useRef,
-  useState,
   SyntheticEvent,
+  ChangeEvent,
+  KeyboardEvent,
 } from "react"
 
 import deepEqual from 'fast-deep-equal'
-import * as PropTypes from 'prop-types'
 
 import {
-  Paper,
-  Button,
   FormControl,
   FormHelperText,
   InputLabel,
@@ -22,7 +19,6 @@ import {
   ExpansionPanelSummary,
   ExpansionPanelDetails,
   Box,
-  TextField,
 } from "@material-ui/core"
 
 import {
@@ -35,7 +31,6 @@ import {
   Directions as DirectionsIcon,
   ExpandMore as ExpandMoreIcon,
 } from "@material-ui/icons"
-import {hideLog} from "../store"
 
 
 // no operation
@@ -47,8 +42,7 @@ const noop = () => null
  * @param  {DOMElement} container The container in which the cursor position must be saved
  * @return {Function}             A function used to restore caret position
  */
-//@ts-ignore
-function selectionSaveCaretPosition(container) {
+function selectionSaveCaretPosition(container: any) {
   const selection = window.getSelection()
 
   if (!selection || selection.rangeCount === 0) {
@@ -94,8 +88,7 @@ function selectionSaveCaretPosition(container) {
  * @param  {Integer} index     The index within the root element of which you want to find the text node
  * @return {Object}            An object that contains the text node, and the index within that text node
  */
-//@ts-ignore
-function getTextNodeAtPosition(rootEl, index) {
+function getTextNodeAtPosition(rootEl: any, index: any) {
   //@ts-ignore
   const treeWalker = document.createTreeWalker(rootEl, NodeFilter.SHOW_TEXT, function next(elem) {
     if (index > elem.textContent.length) {
@@ -122,11 +115,6 @@ function htmlToText(html: string) {
     .replace(/<[^>]*>/g, '')
 }
 
-type ContentEditableEvent = React.SyntheticEvent<any, Event> & {target: {value: string}}
-type Modify<T, R> = Pick<T, Exclude<keyof T, keyof R>> & R
-type DivProps = Modify<JSX.IntrinsicElements["div"], {onChange: ((event: ContentEditableEvent) => void)}>
-
-
 interface EditableProps {
   value: string,
   inputRef: (ref: HTMLInputElement | null) => void,
@@ -135,6 +123,7 @@ interface EditableProps {
   className?: string,
   style?: Object,
   changeQuery: (query: string) => void,
+  executeQuery: () => void,
 }
 
 
@@ -147,14 +136,23 @@ class ContentEditable extends Component<EditableProps> {
     super(props)
   }
 
-  handleInput(event: React.ChangeEvent<HTMLInputElement>) {
+  handleInput(event: ChangeEvent<HTMLInputElement>) {
     const sql = htmlToText(event.target.innerHTML)
 
     this.props.changeQuery(sql)
   }
 
+  handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault()
+
+      this.props.executeQuery()
+    }
+  }
+
   render() {
-    const {tagName, value, inputRef, changeQuery, ...props} = this.props
+    const {tagName, value, inputRef, changeQuery, executeQuery, ...props} = this.props
+
     return React.createElement(
       tagName || 'div',
       {
@@ -163,9 +161,8 @@ class ContentEditable extends Component<EditableProps> {
           inputRef(current)
           this.el.current = current
         } : inputRef || this.el,
-        onInput: (event: React.ChangeEvent<HTMLInputElement>) => { this.handleInput(event) },
-        onClick: (event: SyntheticEvent) => { event.stopPropagation() },
-        onFocus: (event: SyntheticEvent) => { event.stopPropagation() },
+        onInput: (event: ChangeEvent<HTMLInputElement>) => this.handleInput(event),
+        onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => this.handleKeyDown(event),
         contentEditable: true,
         dangerouslySetInnerHTML: {__html: value}
       },
@@ -204,38 +201,6 @@ class ContentEditable extends Component<EditableProps> {
     if (!el) return;
 
     restoreSelection()
-  }
-
-  //emitChange = (originalEvt: React.SyntheticEvent<any>) => {
-    //const el = this.getEl()
-    //if (!el) return
-
-    ////const html = el.innerHTML
-    ////if (this.props.onChange && html !== this.lastHtml) {
-    ////// Clone event with Object.assign to avoid
-    ////// "Cannot assign to read only property 'target' of object"
-    ////const evt = Object.assign({}, originalEvt, {
-    ////target: {
-    ////value: html
-    ////}
-    ////})
-    ////this.props.onChange(evt)
-    ////}
-    ////this.lastHtml = html
-  //}
-
-  static propTypes = {
-    value: PropTypes.string.isRequired,
-    onChange: PropTypes.func.isRequired,
-    changeQuery: PropTypes.func.isRequired,
-    disabled: PropTypes.bool,
-    tagName: PropTypes.string,
-    className: PropTypes.string,
-    style: PropTypes.object,
-    inputRef: PropTypes.oneOfType([
-      PropTypes.object,
-      PropTypes.func,
-    ])
   }
 }
 
@@ -291,9 +256,6 @@ export interface Props {
 }
 
 export default function SqlInput(props: PropsWithChildren<Props>) {
-  const [labelWidth, setLabelWidth] = useState(0)
-  const [syntaxError, setSyntaxError] = useState("")
-  const labelRef = useRef<HTMLLabelElement>(null)
   const classes = useStyles()
 
     //<Paper className={classes.root}>
@@ -313,8 +275,8 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
             fullWidth 
             style={{ flexDirection: "unset" }}
             error={props.query.parserError !== undefined}
-            onClick={ (event: SyntheticEvent) => { event.stopPropagation() }}
             onFocus={ (event: SyntheticEvent) => { event.stopPropagation() }}
+            onClick={ (event: SyntheticEvent) => { event.stopPropagation() }}
           >
             <Box className={classes.inputWrapper}>
               <InputLabel
@@ -331,6 +293,7 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
                 inputComponent={ContentEditable as any}
                 inputProps={{
                   changeQuery: props.changeQuery,
+                  executeQuery: props.executeQuery,
                   fullwidth: "true",
                 }}
               />
@@ -343,20 +306,13 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
             <Divider 
               className={classes.divider} 
               orientation="vertical" 
-              onClick={ (event: SyntheticEvent) => { event.stopPropagation() }}
-              onFocus={ (event: SyntheticEvent) => { event.stopPropagation() }}
             />
             <IconButton 
               type="submit" 
               color="primary" 
               className={classes.iconButton} 
               disabled={props.query.parserError !== undefined}
-              onSubmit={ () => { props.executeQuery() } }
-              onClick={ (event: SyntheticEvent) => { 
-                props.executeQuery()
-                event.stopPropagation() 
-              }}
-              onFocus={ (event: SyntheticEvent) => { event.stopPropagation() }}
+              onClick={ () => { props.executeQuery() }}
               aria-label="directions">
               <DirectionsIcon />
             </IconButton>
