@@ -3,6 +3,7 @@ import React, {
   Component,
   useRef,
   useState,
+  SyntheticEvent,
 } from "react"
 
 import deepEqual from 'fast-deep-equal'
@@ -146,12 +147,6 @@ class ContentEditable extends Component<EditableProps> {
     super(props)
   }
 
-
-  //useEffect(() => {
-  //setLabelWidth(labelRef.current!.offsetWidth)
-  //}, [])
-
-
   handleInput(event: React.ChangeEvent<HTMLInputElement>) {
     const sql = htmlToText(event.target.innerHTML)
 
@@ -168,13 +163,9 @@ class ContentEditable extends Component<EditableProps> {
           inputRef(current)
           this.el.current = current
         } : inputRef || this.el,
-        onInput: (event: any) => { this.handleInput(event) },
-        onClick: (event: any) => { event.stopPropagation() },
-        onFocus: (event: any) => { event.stopPropagation() },
-        //onChange: this.handleInput,
-        //onBlur: this.props.onBlur || this.handleInput,
-        //onKeyUp: this.props.onKeyUp || this.handleInput,
-        //onKeyDown: this.props.onKeyDown || this.handleInput,
+        onInput: (event: React.ChangeEvent<HTMLInputElement>) => { this.handleInput(event) },
+        onClick: (event: SyntheticEvent) => { event.stopPropagation() },
+        onFocus: (event: SyntheticEvent) => { event.stopPropagation() },
         contentEditable: true,
         dangerouslySetInnerHTML: {__html: value}
       },
@@ -203,12 +194,12 @@ class ContentEditable extends Component<EditableProps> {
       !deepEqual(props.style, nextProps.style)
   }
 
-  getSnapshotBeforeUpdate(prevProps: any) {
+  getSnapshotBeforeUpdate(prevProps: EditableProps) {
     if (!this.getEl()) return noop
     return selectionSaveCaretPosition(this.getEl())
   }
 
-  componentDidUpdate(prevProps: any, __: any, restoreSelection: () => void) {
+  componentDidUpdate(_: EditableProps, __: EditableProps, restoreSelection: () => void) {
     const el = this.getEl()
     if (!el) return;
 
@@ -322,12 +313,19 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
             fullWidth 
             style={{ flexDirection: "unset" }}
             error={props.query.parserError !== undefined}
-            onClick={ (event: any) => { event.stopPropagation() }}
-            onFocus={ (event: any) => { event.stopPropagation() }}
+            onClick={ (event: SyntheticEvent) => { event.stopPropagation() }}
+            onFocus={ (event: SyntheticEvent) => { event.stopPropagation() }}
           >
             <Box className={classes.inputWrapper}>
+              <InputLabel
+                className={classes.inputLabel}
+                htmlFor="input-text-field"
+              >
+                SQL Query
+              </InputLabel>
               <Input
                 id="input-text-field"
+                aria-describedby="helper-text"
                 className={classes.input}
                 value={props.query.htmlRepresentation}
                 inputComponent={ContentEditable as any}
@@ -336,21 +334,17 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
                   fullwidth: "true",
                 }}
               />
-              <InputLabel
-                className={classes.inputLabel}
-                htmlFor="input-text-field"
-              >
-                SQL Query
-              </InputLabel>
-              <FormHelperText className={classes.formHelperText}>
+              <FormHelperText 
+                id="helper-text"
+                className={classes.formHelperText}>
                 {props.query.parserError || ""}
               </FormHelperText>
             </Box>
             <Divider 
               className={classes.divider} 
               orientation="vertical" 
-              onClick={ (event: any) => { event.stopPropagation() }}
-              onFocus={ (event: any) => { event.stopPropagation() }}
+              onClick={ (event: SyntheticEvent) => { event.stopPropagation() }}
+              onFocus={ (event: SyntheticEvent) => { event.stopPropagation() }}
             />
             <IconButton 
               type="submit" 
@@ -358,11 +352,11 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
               className={classes.iconButton} 
               disabled={props.query.parserError !== undefined}
               onSubmit={ () => { props.executeQuery() } }
-              onClick={ (event: any) => { 
+              onClick={ (event: SyntheticEvent) => { 
                 props.executeQuery()
                 event.stopPropagation() 
               }}
-              onFocus={ (event: any) => { event.stopPropagation() }}
+              onFocus={ (event: SyntheticEvent) => { event.stopPropagation() }}
               aria-label="directions">
               <DirectionsIcon />
             </IconButton>
@@ -374,12 +368,3 @@ export default function SqlInput(props: PropsWithChildren<Props>) {
       </ExpansionPanel>
   )
 }
-      //<Button variant="contained"
-        //color="primary"
-        //disabled={props.query.parserError !== undefined}
-        //onClick={() => {props.executeQuery()}}  >
-        //Process
-        //</Button>
-        //<InputLabel ref={labelRef} htmlFor="component-outlined">
-          //Name
-        //<3/InputLabel>
