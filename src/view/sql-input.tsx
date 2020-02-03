@@ -32,6 +32,8 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from "@material-ui/icons"
 
+import {htmlToText} from "../util/html-convert"
+
 
 // no operation
 const noop = () => null
@@ -105,16 +107,6 @@ function getTextNodeAtPosition(rootEl: any, index: any) {
   }
 }
 
-function normalizeHtml(str: string): string {
-  return str && str.replace(/&nbsp|\u202F|\u00A0/g, ' ')
-}
-
-function htmlToText(html: string) {
-  return html.replace(/&nbsp;/g, ' ')
-    .replace(/<div>([^<]*)<\/div>/g, '$1\n')
-    .replace(/<[^>]*>/g, '')
-}
-
 interface EditableProps {
   value: string,
   inputRef: (ref: HTMLInputElement | null) => void,
@@ -137,13 +129,14 @@ class ContentEditable extends Component<EditableProps> {
   }
 
   handleInput(event: ChangeEvent<HTMLInputElement>) {
-    const sql = htmlToText(event.target.innerHTML)
+    const html = event.target.innerHTML.substr(0, event.target.innerHTML.length - 4)
+    const sql = htmlToText(html)
 
     this.props.changeQuery(sql)
   }
 
   handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === "Enter") {
+    if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
 
       this.props.executeQuery()
@@ -151,12 +144,16 @@ class ContentEditable extends Component<EditableProps> {
   }
 
   render() {
-    const {tagName, value, inputRef, changeQuery, executeQuery, ...props} = this.props
+    const {tagName, value, inputRef, changeQuery, executeQuery, style, ...props} = this.props
+
+    const numberOfLines = (value.match(/<br>/g) || []).length + 1
+    const lineHeight = numberOfLines * 1.1875
 
     return React.createElement(
       tagName || 'div',
       {
         ...props,
+        style: { height: `${lineHeight}em` },
         ref: typeof inputRef === 'function' ? (current: HTMLInputElement) => {
           inputRef(current)
           this.el.current = current
@@ -164,31 +161,9 @@ class ContentEditable extends Component<EditableProps> {
         onInput: (event: ChangeEvent<HTMLInputElement>) => this.handleInput(event),
         onKeyDown: (event: KeyboardEvent<HTMLDivElement>) => this.handleKeyDown(event),
         contentEditable: true,
-        dangerouslySetInnerHTML: {__html: value}
+        dangerouslySetInnerHTML: {__html: value + '<br>'}
       },
       this.props.children)
-  }
-
-
-  shouldComponentUpdate(nextProps: EditableProps): boolean {
-    const {props} = this
-    const el = this.getEl()
-
-    // We need not rerender if the change of props simply reflects the user's edits.
-    // Rerendering in this case would make the cursor/caret jump
-
-    // Rerender if there is no element yet... (somehow?)
-    if (!el) return true
-
-    // Check if the html is updated
-    if (el.innerHTML !== nextProps.value) return true
-
-    // Handle additional properties
-    return props.disabled !== nextProps.disabled ||
-      props.tagName !== nextProps.tagName ||
-      props.className !== nextProps.className ||
-      props.inputRef !== nextProps.inputRef ||
-      !deepEqual(props.style, nextProps.style)
   }
 
   getSnapshotBeforeUpdate(prevProps: EditableProps) {
@@ -197,10 +172,11 @@ class ContentEditable extends Component<EditableProps> {
   }
 
   componentDidUpdate(_: EditableProps, __: EditableProps, restoreSelection: () => void) {
-    const el = this.getEl()
-    if (!el) return;
-
     restoreSelection()
+  }
+
+  componentDidMount() {
+    this.getEl().focus()
   }
 }
 
@@ -258,8 +234,6 @@ export interface Props {
 export default function SqlInput(props: PropsWithChildren<Props>) {
   const classes = useStyles()
 
-    //<Paper className={classes.root}>
-    //</Paper>
   return (
       <ExpansionPanel
         expanded={props.expanded}

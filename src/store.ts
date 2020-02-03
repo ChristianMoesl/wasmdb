@@ -12,29 +12,13 @@ import {
 } from "redux";
 
 import {parse} from "./util/sql-parser"
+import {stripWhitespaces, textToHtml} from "./util/html-convert"
 import {saveBlob} from "./util/blob-save"
 import {QueryState} from "./view/sql-input"
 import {LogMessage} from "./view/log"
 import {createWasmWorker, FilePreview, EngineStatus} from "./wasm/master"
 export {FilePreview} from "./wasm/master"
 
-
-const demoFilePreviews: Array<FilePreview> = [{
-  name: "t1gram.csv",
-  contentPreview: ["Aurung,1959,11,9", "Aurung,1960,7,7", "Aurung,1961,6,4"],
-  size: 1024,
-  type: "text/csv"
-}, {
-  name: "t1gram.csv",
-  contentPreview: ["Aurung,1959,11,9", "Aurung,1960,7,7", "Aurung,1961,6,4"],
-  size: 1024,
-  type: "text/csv"
-}, {
-  name: "t1gram.csv",
-  contentPreview: ["Aurung,1959,11,9", "Aurung,1960,7,7", "Aurung,1961,6,4"],
-  size: 1024,
-  type: "text/csv"
-}]
 
 function createConnectedWorker() {
   return createWasmWorker(
@@ -116,23 +100,6 @@ export const abortExecution: () => AbortExecutionAction = () => {
 }
 
 
-function textToHtml(text: string) {
-  return text.replace(/ /g, '&nbsp;')
-    .replace(/(.*)\n/g, '<div>$1</div>')
-}
-
-function stripWhitespaces(text: string) {
-  const startMatcher = text.match(/^(\s+)\S.*/)
-  const start = startMatcher ? startMatcher[1] : ""
-
-  const endMatcher = text.match(/.*\S(\s+)$/)
-  const end = endMatcher ? endMatcher[1] : ""
-
-  const stripped = text.substring(start.length, text.length - end.length)
-
-  return [start, stripped, end]
-}
-
 export type ChangeQueryAction =
   {type: "CHANGE_QUERY", payload: {sql: string, htmlRepresentation: string}} |
   {type: "QUERY_PARSER_ERROR", error: true, payload: string}
@@ -147,7 +114,7 @@ export const changeQuery = (query: string) => (dispatch: any) => {
       type: "CHANGE_QUERY",
       payload: {
         sql: query,
-        htmlRepresentation: textToHtml(parts[0] + colored + parts[2]) + "<br>",
+        htmlRepresentation: textToHtml(parts[0] + colored + parts[2]),
       },
     })
   } catch (e) {
@@ -156,7 +123,7 @@ export const changeQuery = (query: string) => (dispatch: any) => {
         type: "CHANGE_QUERY",
         payload: {
           sql: query,
-          htmlRepresentation: textToHtml(query) + "<br>",
+          htmlRepresentation: textToHtml(query),
         }
       })
       dispatch({
