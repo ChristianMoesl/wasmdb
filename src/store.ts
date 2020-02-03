@@ -317,3 +317,4 @@ const middleware = applyMiddleware(thunkMiddleware, promiseMiddleware)
 
 // Store
 export const store = createStore(reducer, composeWithDevTools({})(middleware))
+
