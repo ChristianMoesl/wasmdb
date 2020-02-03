@@ -55,7 +55,7 @@
   },
   "scripts": {
     "test": "mocha -r ts-node/register tests/**/*.spec.ts",
-    "build": "npm run build:ts",
+    "build": "npm run build:ts-prod",
     "build-prod": "npm run build:ts-prod && npm run build:scss-prod",
     "watch": "watchify src/app.tsx -v -p [ tsify --noImplicitAny ] -o dist/bundle.js --debug",
     "build:ts": "browserify src/app.tsx -p [ tsify --noImplicitAny ] > dist/bundle.js",
