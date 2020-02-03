@@ -84,23 +84,22 @@ export default function App(props: ResponsiveDrawerProps) {
       <List>
         <ListItem button component={Link} to ="/" key="home">
           <ListItemIcon><InboxIcon /></ListItemIcon>
-          <ListItemText primary="Home" />
+          <ListItemText primary="Tool" />
         </ListItem>
-        <ListItem button component={Link} to ="/examples" key="examples">
-          <ListItemIcon><InboxIcon /></ListItemIcon>
-          <ListItemText primary="Examples" />
-        </ListItem>
-
       </List>
       <Divider />
-      <List>
-        <ListItem button component={Link} to ="/internals" key="internals">
-          <ListItemIcon><InboxIcon /></ListItemIcon>
-          <ListItemText primary="Internals" />
-        </ListItem>
-      </List>
     </div>
   );
+        //<ListItem button component={Link} to ="/examples" key="examples">
+          //<ListItemIcon><InboxIcon /></ListItemIcon>
+          //<ListItemText primary="Examples" />
+        //</ListItem>
+      //<List>
+        //<ListItem button component={Link} to ="/internals" key="internals">
+          //<ListItemIcon><InboxIcon /></ListItemIcon>
+          //<ListItemText primary="Internals" />
+        //</ListItem>
+      //</List>
 
   return (
     <div className={classes.root}>
@@ -157,13 +156,14 @@ export default function App(props: ResponsiveDrawerProps) {
           <div className={classes.content}>
             <div className={classes.toolbar} />
               <Route exact path="/" component={Tool} />
-              <Route path="/examples" component={Examples} />
-              <Route path="/internals" component={Internals} />>
           </div>
         </Router>
       </Provider>
     </div>
   );
 }
+
+              //<Route path="/examples" component={Examples} />
+              //<Route path="/internals" component={Internals} />>
 
 render(<App />, document.getElementById('main'));
