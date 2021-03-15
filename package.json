@@ -51,7 +51,7 @@
     "watchify": "^3.11.1"
   },
   "optionalDependencies": {
-    "fsevents": "^2.1.2"
+    "fsevents": "^2.0.0"
   },
   "scripts": {
     "test": "mocha -r ts-node/register tests/**/*.spec.ts",

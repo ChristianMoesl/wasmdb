@@ -15,13 +15,13 @@ WasmDB compiles SQL queries into highly specialised WebAssembly code to compute 
 
 3. Download project dependencies and build:
   * `npm install`
-  * `npm build`
+  * `npm run build`
 
 4. Serve web page (with python for example):
   * `cd ./dist && python3 -m http.server`
 
 ## Project Parts:
-+ ![Lightweight Module Staging (LMS)](https://github.com/TiarkRompf/lms-clean) 
-+ ![WebAssembly DSL for LMS](https://github.com/ChristianMoesl/lms-wasm)
-+ ![SQL Query Compiler](https://github.com/ChristianMoesl/wasmdb-backend)
-+ ![Query Executor Web App](https://github.com/ChristianMoesl/wasmdb)
++ [Lightweight Module Staging (LMS)](https://github.com/TiarkRompf/lms-clean) 
++ [WebAssembly DSL for LMS](https://github.com/ChristianMoesl/lms-wasm)
++ [SQL Query Compiler](https://github.com/ChristianMoesl/wasmdb-backend)
++ [Query Executor Web App](https://github.com/ChristianMoesl/wasmdb)
