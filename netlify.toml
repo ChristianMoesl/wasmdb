@@ -3,3 +3,18 @@
   [headers.values]
     Cross-Origin-Opener-Policy = "same-origin" 
     Cross-Origin-Embedder-Policy = "require-corp"
+
+[[redirects]]
+  from = "/examples"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/quickstart"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://api.wasmdb.christianmoesl.com/:splat"
+  status = 200
