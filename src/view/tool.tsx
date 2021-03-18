@@ -1,36 +1,62 @@
 import * as React from "react";
 import { connect } from "react-redux"
 import { withRouter } from "react-router-dom"
-import { Box, Container, Typography, Paper } from "@material-ui/core"
-import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
+import { Box, Container, Typography, Paper , Button } from "@material-ui/core"
+import { makeStyles } from '@material-ui/core/styles';
+import SaveIcon from '@material-ui/icons/Save';
 
 import CsvFilePicker from "./csv-file-picker"
 import SqlInput from "./sql-input"
 import {CsvTable} from "./csv-table"
 import {Log} from "./log"
 
-import { 
-  State as StoreState, 
-  changeQuery, 
+import {
+  State as StoreState,
+  changeQuery,
   showLog,
   hideLog,
-  appendLog, 
+  appendLog,
   loadFiles,
-  saveFile,
   removeFile,
   executeQuery,
 } from "../store"
 
-
-type ToolProps = 
+type ToolProps =
   ReturnType<typeof mapStateToProps> &
   ReturnType<typeof mapDispatchToProps>
 
+const style = makeStyles({
+  paper: {
+    height: 800,
+    width: "100%",
+  },
+  buttonWrapper: {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-end",
+  },
+});
+
 function Tool(props: ToolProps) {
-  function handleLogExpansionChange(event: object, expanded: boolean) {
+  function handleLogExpansionChange(_event: object, expanded: boolean) {
     if (expanded) props.showLog()
     else props.hideLog()
   }
+
+  const DownloadBehavior = React.useMemo(
+    () =>
+      React.forwardRef((buttonProps, ref) => (
+       <a
+        ref={ref as any}
+        href={props.downloadUrl || ""}
+        download="result.csv"
+        {...buttonProps}>
+          {buttonProps.children}
+          Save
+       </a>
+    )), [props]);
+
+  const classes = style()
 
   return (
     <main>
@@ -41,14 +67,14 @@ function Tool(props: ToolProps) {
         </Typography>
       </Box>
       <Box mb={3}>
-      <CsvFilePicker 
+      <CsvFilePicker
         filePreviews={props.filePreviews}
         loadFiles={props.loadFiles}
         removeFile={props.removeFile} />
       </Box>
 
       <Box width={1} mb={3}>
-        <SqlInput 
+        <SqlInput
           query={props.query}
           changeQuery={props.changeQuery}
           executeQuery={props.executeQuery}
@@ -56,21 +82,32 @@ function Tool(props: ToolProps) {
           onExpansionChange={handleLogExpansionChange}
           >
           <Log
-            title="Log"
-            messages={props.logMessages}
-          />
-        </SqlInput>
-       </Box>
+              title="Log"
+              messages={props.logMessages}
+            />
+          </SqlInput>
+         </Box>
 
-       {props.result && 
-        <Box my={3}>
-          <Paper style={{ height: 400, width: '100%' }}>
-            <CsvTable 
-              csvHeader={props.result!.csvHeader || ""}
-              csvData={props.result!.csvData}
-              saveFile={props.saveFile} />
-          </Paper>
-        </Box>}
+         {props.result &&
+            <Box my={3}>
+              <Box m={3} className={classes.buttonWrapper}>
+                {props.downloadUrl &&
+                 <Button
+                  variant="contained"
+                  color="primary"
+                  component={DownloadBehavior as any}
+                  startIcon={<SaveIcon />}
+                 />
+                }
+               </Box>
+              <Paper className={classes.paper} >
+                <CsvTable
+                  csvHeader={props.result!.csvHeader || ""}
+                  csvData={props.result!.csvData}
+                 />
+              </Paper>
+         </Box>
+       }
     </Container>
     </main>
   )
@@ -83,6 +120,7 @@ function mapStateToProps(state: StoreState) {
     logMessages: state.logMessages,
     logDisplayed: state.logDisplayed,
     result: state.result,
+    downloadUrl: state.downloadUrl,
     engineStatus: state.engineStatus,
     engineError: state.engineError
   }
@@ -93,7 +131,6 @@ function mapDispatchToProps(dispatch: React.Dispatch<any>) {
     changeQuery: (query: string) => dispatch(changeQuery(query)),
     executeQuery: () => dispatch(executeQuery()),
     loadFiles: (files: FileList) => dispatch(loadFiles(files)),
-    saveFile: (name:  string) => dispatch(saveFile(name)),
     removeFile: (name: string) => dispatch(removeFile(name)),
     appendLog: (msg: string) =>  dispatch(appendLog(msg)),
     showLog: () => dispatch(showLog()),

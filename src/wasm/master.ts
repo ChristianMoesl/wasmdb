@@ -1,18 +1,17 @@
 import {List, Map} from "immutable"
+import {v4 as uuidv4} from "uuid";
 
 import {
   WorkerResponse,
-  WorkerRequest,
-  CmdError,
-  FilePreview,
-  CmdFilesLoaded
 } from "./worker"
 
 export {FilePreview} from "./worker"
-export type EngineStatus = "fileLoading" | "savingFile" | "executing" | "idle"
+export type EngineStatus = "fileLoading" | "executing" | "idle"
 
+// tslint:disable-next-line:no-var-requires
 const work = require('webworkify')
-const workerModule = require('./worker')
+
+import workerModule = require('./worker')
 
 export function createWasmWorker(log: (msg: string) => void, print: (result: List<string>) => void) {
   let commandResolvers = Map<string, (param: any) => void>()
@@ -24,7 +23,7 @@ export function createWasmWorker(log: (msg: string) => void, print: (result: Lis
   let printedMessages = List<string>()
 
   const worker: Worker = work(workerModule);
-  const messageListener = (event: any) => handle(<WorkerResponse>event.data)
+  const messageListener = (event: any) => handle(event.data as WorkerResponse)
 
   worker.addEventListener('message', messageListener)
 
@@ -50,28 +49,28 @@ export function createWasmWorker(log: (msg: string) => void, print: (result: Lis
             break
         }
         break
-      case "error": rejectResponse(response.answers, response.payload); break
-      case "response": resolveResponse(response.answers, response.payload); break
+      case "error": rejectResponse(response.uuid, response.payload); break
+      case "response": resolveResponse(response.uuid, response.payload); break
     }
   }
 
-  function rejectResponse(answers: string, payload: any) {
-    commandResolvers = commandResolvers.delete(answers)
+  function rejectResponse(uuid: string, payload: any) {
+    commandResolvers = commandResolvers.delete(uuid)
 
-    if (commandRejectors.has(answers)) {
-      const rejector = commandRejectors.get(answers) as ((param: any) => void)
-      commandRejectors = commandRejectors.delete(answers)
+    if (commandRejectors.has(uuid)) {
+      const rejector = commandRejectors.get(uuid) as ((param: any) => void)
+      commandRejectors = commandRejectors.delete(uuid)
 
       rejector(payload)
     }
   }
 
-  function resolveResponse(answers: string, payload: any) {
-    commandRejectors = commandRejectors.delete(answers)
+  function resolveResponse(uuid: string, payload: any) {
+    commandRejectors = commandRejectors.delete(uuid)
 
-    if (commandResolvers.has(answers)) {
-      const resolve = commandResolvers.get(answers) as ((param: any) => void)
-      commandResolvers = commandResolvers.delete(answers)
+    if (commandResolvers.has(uuid)) {
+      const resolve = commandResolvers.get(uuid) as ((param: any) => void)
+      commandResolvers = commandResolvers.delete(uuid)
 
       resolve(payload)
     }
@@ -92,9 +91,12 @@ export function createWasmWorker(log: (msg: string) => void, print: (result: Lis
     }
 
     return new Promise<T>((resolve, reject) => {
-      worker.postMessage({type: "request", command, payload})
-      commandResolvers = commandResolvers.set(command, resolve)
-      commandRejectors = commandRejectors.set(command, reject)
+      const uuid = uuidv4()
+
+      worker.postMessage({type: "request", uuid, command, payload})
+
+      commandResolvers = commandResolvers.set(uuid, resolve)
+      commandRejectors = commandRejectors.set(uuid, reject)
     })
   }
 }

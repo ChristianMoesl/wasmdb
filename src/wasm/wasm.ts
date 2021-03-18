@@ -45,25 +45,26 @@ function strlen(arr: Uint8Array): number {
 function str(ptr: number, len?: number): string {
   const buf = new Uint8Array(mem.buffer, ptr);
   const length = len === undefined ? strlen(buf) : len!;
-  return String.fromCharCode.apply(null, <any>buf.subarray(0, length));
+  return String.fromCharCode.apply(null, buf.subarray(0, length) as any);
 }
 
-function insertAt(arr: Uint8Array, idx: number, string: string) {
-  for (let i = 0; i < string.length; i++)
-    arr[idx++] = string.charCodeAt(i);
+function insertAt(arr: Uint8Array, idx: number, s: string) {
+  for (let i = 0; i < s.length; i++)
+    arr[idx++] = s.charCodeAt(i);
   arr[idx++] = 0;
   return idx;
 }
 
-function save(str: string) {
-  const addr = malloc(str.length + 1);
-  insertAt(new Uint8Array(mem.buffer), addr, str);
+function save(s: string) {
+  const addr = malloc(s.length + 1);
+  insertAt(new Uint8Array(mem.buffer), addr, s);
   return addr;
 }
 
-function loadArgs(typeMask: number): Array<any> {
-  let args = Array<any>();
+function loadArgs(typeMask: number): any[] {
+  const args = Array<any>();
   for (let i = 0; i < 4; i++) {
+    // tslint:disable-next-line:no-bitwise
     switch ((typeMask >> (i * 8)) & 255) {
       case 0: // no argument
         return args;
@@ -116,7 +117,7 @@ function fetchFile(name: number) {
   if (file === undefined)
     error(`${str(name)} has to be prefetched in browser`);
 
-  const fileBuffer = new Uint8Array(<ArrayBuffer>file);
+  const fileBuffer = new Uint8Array(file as ArrayBuffer);
 
   const len = fileBuffer.length;
   const start = malloc(len + 4);
@@ -125,8 +126,8 @@ function fetchFile(name: number) {
   return start + 4;
 }
 
-function error(string: string) {
-  throw Error(string);
+function error(s: string) {
+  throw Error(s);
 }
 
 export async function run(binary: BufferSource) {
@@ -138,7 +139,7 @@ export async function run(binary: BufferSource) {
     maximum: heapInGb * Math.pow(2, 30) / bytesPerPage
   });
 
-  let env = {
+  const env = {
     abortStackOverflow: (err: number) => {throw new Error(`overflow: ` + err);},
     table: new WebAssembly.Table({initial: 0, maximum: 0, element: 'anyfunc'}),
     __table_base: 0,
@@ -152,7 +153,7 @@ export async function run(binary: BufferSource) {
     printData: printDataString,
     stringSlice: (s: number, start: number, end: number) => save(str(s).slice(start, end)),
     stringToDouble: (s: number) => Number.parseFloat(str(s)),
-    stringToInt: (s: number) => Number.parseInt(str(s)),
+    stringToInt: (s: number) => Number.parseInt(str(s), 10),
     stringLength: (s: number) => str(s).length,
     stringCharAt: (s: number, i: number) => str(s).charAt(i),
     readFile: fetchFile,
@@ -163,7 +164,7 @@ export async function run(binary: BufferSource) {
 
     mem = results.instance.exports.mem;
 
-    //@ts-ignore
+    // @ts-ignore
     return results.instance.exports.Snippet(0);
   } catch (reason) {
     error(reason.toString());

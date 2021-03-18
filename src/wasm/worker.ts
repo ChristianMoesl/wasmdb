@@ -1,25 +1,26 @@
 import {run, files, setOnPrintListener} from "./wasm"
+import {v4 as uuidv4} from "uuid";
 
 export type FilePreview = {
   name: string,
-  contentPreview: Array<string>,
+  contentPreview: string[],
   size: number,
   type: string
 }
 
-export type Request = {type: "request", command: string, payload: any}
-export type Response = {type: "response", answers: string, payload: any}
-export type ErrorResponse = {type: "error", answers: string, payload: string}
+export type Request = {type: "request", uuid: string, command: string, payload: any}
+export type Response = {type: "response", uuid: string, answers: string, payload: any}
+export type ErrorResponse = {type: "error", uuid: string, answers: string, payload: string}
 
 export type Cmd = Request | Response | ErrorResponse
 
-export type CmdLoadFiles = {type: "request", command: "loadFiles", payload: Array<File>}
-export type CmdFilesLoaded = {type: "response", answers: "loadFiles", payload: Array<FilePreview>}
-export type CmdExecuteQuery = {type: "request", command: "executeQuery", payload: string}
-export type CmdFinishedExec = {type: "response", answers: "executeQuery", payload: null}
-export type CmdPrint = {type: "request", command: "print", payload: string}
-export type CmdLog = {type: "request", command: "log", payload: string}
-export type CmdError = {type: "error", answers: "loadFiles" | "executeQuery", payload: string}
+export type CmdLoadFiles = {type: "request", uuid: string, command: "loadFiles", payload: File[]}
+export type CmdFilesLoaded = {type: "response", uuid: string, answers: "loadFiles", payload: FilePreview[]}
+export type CmdExecuteQuery = {type: "request", uuid: string, command: "executeQuery", payload: string}
+export type CmdFinishedExec = {type: "response", uuid: string, answers: "executeQuery", payload: null}
+export type CmdPrint = {type: "request", uuid: string, command: "print", payload: string}
+export type CmdLog = {type: "request", uuid: string, command: "log", payload: string}
+export type CmdError = {type: "error", uuid: string, answers: "loadFiles" | "executeQuery", payload: string}
 
 export type WorkerRequest = CmdLoadFiles | CmdExecuteQuery
 export type WorkerAnswer = CmdFilesLoaded | CmdFinishedExec | CmdError
@@ -36,7 +37,7 @@ function findEndOFLine(buffer: ArrayBuffer, start: number) {
   const view = new Uint8Array(buffer)
 
   for (let i = start; i < view.length; i++)
-    if (view[i] == '\n'.charCodeAt(0))
+    if (view[i] === '\n'.charCodeAt(0))
       return i
 
   return view.length
@@ -48,7 +49,7 @@ function buildPreview(buffer: ArrayBuffer, numberOfLines: number) {
 
   let start = 0
   let end = 0
-  let result = new Array<string>()
+  const result = [] as string[]
 
   for (let i = 0; i < numberOfLines && start < view.length; i++) {
     end = findEndOFLine(buffer, start)
@@ -63,13 +64,13 @@ function buildPreview(buffer: ArrayBuffer, numberOfLines: number) {
   return result
 }
 
-module.exports = function (self: any) {
+module.exports = (self: any) => {
 
   async function handle(request: WorkerRequest) {
     try {
       switch (request.command) {
         case "loadFiles":
-          const filesLoaded: Array<FileContent> = await loadFiles(request.payload as Array<File>)
+          const filesLoaded: FileContent[] = await loadFiles(request.payload as File[])
 
           filesLoaded.forEach(file => {
             files.set(file.name, file.content)
@@ -82,33 +83,36 @@ module.exports = function (self: any) {
             type: file.type || "n/a"
           }))
 
-          postResponse({type: "response", answers: "loadFiles", payload: filePreviews})
+          postResponse({type: "response", uuid: request.uuid, answers: "loadFiles", payload: filePreviews})
           break
         case "executeQuery":
           await executeQuery(request.payload as string)
 
-          postResponse({type: "response", answers: "executeQuery", payload: null})
+          postResponse({type: "response", uuid: request.uuid, answers: "executeQuery", payload: null})
           break
       }
     } catch (e) {
-      postResponse({type: "error", answers: request.command, payload: e.message})
+      postResponse({type: "error", uuid: request.uuid, answers: request.command, payload: e.message})
     }
   }
 
-  self.addEventListener('message', (e: any) => handle(<WorkerRequest>e.data))
+  self.addEventListener('message', (e: any) => handle(e.data as WorkerRequest))
 
   function postResponse(response: WorkerResponse) {
     self.postMessage(response)
   }
 
   function log(msg: string) {
-    postResponse({type: "request", command: "log", payload: msg})
+    postResponse({type: "request", uuid: uuidv4(), command: "log", payload: msg})
   }
 
   async function executeQuery(query: string) {
+
     try {
+      const request = `https://api.wasmdb.christianmoesl.com?query=${encodeURIComponent(query)}`
+
       log(`sending SQL query to server`)
-      const response = await fetch(`https://api.wasmdb.christianmoesl.com?query=${encodeURIComponent(query)}`, {
+      const response = await fetch(request, {
         headers: {
           'Accept': 'application/wasm'
         }
@@ -124,33 +128,37 @@ module.exports = function (self: any) {
 
         log(`finished execution`)
       } else {
-        throw new Error(`received error ${response.status}`)
+        const reason = await response.text()
+
+        throw new Error(`received error ${response.status}
+          from ${request}
+          with: "${reason}"`)
       }
     } finally {
       flushOutputBuffer();
     }
   }
 
-  async function loadFiles(fileHandles: Array<File>) {
-    return new Promise<Array<FileContent>>((resolve, reject) => {
-      let files = new Array<FileContent>()
+  async function loadFiles(fileHandles: File[]) {
+    return new Promise<FileContent[]>((resolve, reject) => {
+      const loadedFiles = [] as FileContent[]
 
       for (const file of fileHandles) {
         log(`loading ${file.name} into memory`);
 
         const reader = new FileReader();
         reader.onload = event => {
-          files.push({
+          loadedFiles.push({
             name: file.name,
-            content: <ArrayBuffer>event.target!.result,
+            content: event.target!.result as ArrayBuffer,
             type: file.type,
             size: file.size
           })
 
           log(`finished loading ${file.name}`);
 
-          if (files.length === fileHandles.length)
-            resolve(files)
+          if (loadedFiles.length === fileHandles.length)
+            resolve(loadedFiles)
         };
         reader.onabort = e => reject(e)
         reader.onerror = e => reject(e)
@@ -160,7 +168,7 @@ module.exports = function (self: any) {
   }
 
   const fragmentSize = 1000;
-  let output = new Array<string>();
+  let output = [] as string[]
 
   function parseData(s: string) {
     if (output.length >= fragmentSize && s === "\n")
@@ -172,8 +180,8 @@ module.exports = function (self: any) {
   setOnPrintListener(parseData);
 
   function flushOutputBuffer() {
-    postResponse({type: "request", command: "print", payload: output.join("")})
+    postResponse({type: "request", uuid: uuidv4(), command: "print", payload: output.join("")})
 
-    output = new Array<string>()
+    output = [] as string[]
   }
 }

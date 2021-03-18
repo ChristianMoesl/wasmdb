@@ -1,3 +1,5 @@
+// tslint:disable:no-shadowed-variable
+
 import React from "react"
 import {List} from "immutable"
 
@@ -57,11 +59,10 @@ export interface CsvTableProps extends WithStyles<typeof styles> {
   headerHeight?: number;
   rowHeight?: number;
   onRowClick?: () => void;
-  saveFile: (name: string) => void,
 }
 
 function CsvTableUnstyled(props: CsvTableProps) {
-  
+
   const columns: ColumnData[] = props.csvHeader.split(props.delimiter!)
     .map((c: string, i: number) => ({ dataKey: i.toString(), label: c, width: 150 }))
 
@@ -91,7 +92,7 @@ function CsvTableUnstyled(props: CsvTableProps) {
   }
 
   const cellDataGetter: TableCellDataGetter = ({ dataKey, rowData }) =>
-    rowData.split(props.delimiter)[parseInt(dataKey)]
+    rowData.split(props.delimiter)[parseInt(dataKey, 10)]
 
   const headerRenderer = ({ label, columnIndex }: TableHeaderProps & { columnIndex: number }) => {
     const { headerHeight,  classes } = props;

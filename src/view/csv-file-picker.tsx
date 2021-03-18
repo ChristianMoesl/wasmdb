@@ -1,20 +1,20 @@
 import React, { Component } from "react"
 import {List} from "immutable"
 import { makeStyles, createStyles, Theme } from '@material-ui/core/styles'
-import { 
-  Box, 
-  Button, 
+import {
+  Box,
+  Button,
   IconButton,
-  Paper, 
-  Grid, 
-  Table, 
-  TableRow, 
-  TableCell, 
-  Typography, 
-  TableBody, 
-  Icon 
+  Paper,
+  Grid,
+  Table,
+  TableRow,
+  TableCell,
+  Typography,
+  TableBody,
+  Icon
 } from "@material-ui/core"
-import { 
+import {
   Add as AddIcon,
   DeleteRounded as DeleteIcon,
 } from "@material-ui/icons"
@@ -72,15 +72,15 @@ function FilePreviewTable(props: FilePreviewProps) {
     return possibleDelimiters[idx]
   }
 
-  function splitLines(lines: Array<string>) {
-    if (lines.length == 0) return new Array<Array<string>>()
+  function splitLines(lines: string[]) {
+    if (lines.length === 0) return []
 
     const delim = delimiter(lines[0])
 
     return lines.map(line => line.split(delim))
   }
 
-  function columns(lines: Array<string>) {
+  function columns(lines: string[]) {
     if (lines.length === 0) return 2
 
     const delim = delimiter(lines[0])
@@ -90,13 +90,13 @@ function FilePreviewTable(props: FilePreviewProps) {
   }
 
   function minMax(n: number, min: number, max: number):  2 | 1 | 3 | 12 | 6 | 4 | 5 | 7 | 8 | 9 | 10 | 11 {
-    //@ts-ignore
+    // @ts-ignore
     return Math.max(Math.min(n, max), min)
   }
 
-  const xs = (lines: Array<string>) => minMax(columns(lines) * 3, 6, 12)
-  const sm = (lines: Array<string>) => minMax(columns(lines) * 2, 4, 12)
-  const md = (lines: Array<string>) => minMax(columns(lines), 4, 12)
+  const xs = (lines: string[]) => minMax(columns(lines) * 3, 6, 12)
+  const sm = (lines: string[]) => minMax(columns(lines) * 2, 4, 12)
+  const md = (lines: string[]) => minMax(columns(lines), 4, 12)
 
   return (
   <Grid item
@@ -104,7 +104,7 @@ function FilePreviewTable(props: FilePreviewProps) {
         sm={sm(props.file.contentPreview)}
         md={md(props.file.contentPreview)}>
     <Paper className={classes.paper}>
-      <Button 
+      <Button
         className={classes.deleteButton}
         variant="contained"
         color="secondary"
@@ -120,8 +120,8 @@ function FilePreviewTable(props: FilePreviewProps) {
           <TableBody>
             {splitLines(props.file.contentPreview).map((row, idx) => (
               <TableRow key={idx}>
-                {row.map((cell, idx) => (
-                  <TableCell key={idx}>{cell}</TableCell>
+                {row.map((cell, i) => (
+                  <TableCell key={i}>{cell}</TableCell>
                 ))}
               </TableRow>
             ))}
@@ -189,7 +189,8 @@ export default function CsvFilePicker(props: Props) {
 CsvFilePicker.defaultProps = {
   disabled: false,
   filePreviews: List<FilePreview>(),
-  loadFiles: () => { },
-  removeFile: () => { },
+  // tslint:disable:no-empty
+  loadFiles: () => {},
+  removeFile: () => {},
 }
 

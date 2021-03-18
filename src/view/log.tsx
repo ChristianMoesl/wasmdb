@@ -23,7 +23,7 @@ const useEntryStyles = makeStyles((theme: Theme) =>
 
 function LogEntry(props: {message: LogMessage}) {
   const classes = useEntryStyles()
-  return ( 
+  return (
     <ListItem className={classes.item}>
       <Box display="flex">
         <Box fontFamily="Monospace" fontWeight="fontWeightMedium" color={props.message.error ? "text.error" : "text.primary"}>{props.message.date}</Box>
