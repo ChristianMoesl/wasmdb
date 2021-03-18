@@ -1,4 +1,4 @@
-# WasmDB ![](https://github.com/ChristianMoesl/wasmdb/workflows/CI/badge.svg)
+# WasmDB ![Build Status](https://github.com/ChristianMoesl/wasmdb/workflows/CI/badge.svg) [![Netlify Status](https://api.netlify.com/api/v1/badges/8cf8bb7e-ef52-4c03-99ec-9cf1c1f9bd3f/deploy-status)](https://app.netlify.com/sites/wasmdb/deploys)
 
 WasmDB is a project of the Programming Language Group at the Department of Computer Sciences of Purdue University in USA Indiana.
 
