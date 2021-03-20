@@ -5,10 +5,10 @@ export const files = new Map<string, ArrayBuffer>();
 type OnPrintListener = (s: string) => void;
 let printListener: OnPrintListener;
 export function setOnPrintListener(listener: OnPrintListener) {
-  printListener = listener
+  printListener = listener;
 }
 function notfiyPrintListener(s: string) {
-  if (printListener !== undefined) printListener(s)
+  if (printListener !== undefined) printListener(s);
 }
 
 const heapInGb = 4; // 4 is maximum for wasm32
@@ -38,7 +38,9 @@ function malloc(size: number): number {
 
 function strlen(arr: Uint8Array): number {
   let len = 0;
-  while (arr[len] !== 0) {len++;}
+  while (arr[len] !== 0) {
+    len++;
+  }
   return len;
 }
 
@@ -49,8 +51,7 @@ function str(ptr: number, len?: number): string {
 }
 
 function insertAt(arr: Uint8Array, idx: number, s: string) {
-  for (let i = 0; i < s.length; i++)
-    arr[idx++] = s.charCodeAt(i);
+  for (let i = 0; i < s.length; i++) arr[idx++] = s.charCodeAt(i);
   arr[idx++] = 0;
   return idx;
 }
@@ -98,13 +99,17 @@ function loadArgs(typeMask: number): any[] {
 
 function printlnString(typeMask: number) {
   if (typeMask !== 0)
-    loadArgs(typeMask).forEach(x => notfiyPrintListener(x.toString()))
+    loadArgs(typeMask).forEach((x) => notfiyPrintListener(x.toString()));
 
-  notfiyPrintListener("\n")
+  notfiyPrintListener("\n");
 }
 
 function printfString(formatString: number, typeMask: number) {
-  notfiyPrintListener(typeMask == null ? str(formatString) : printf(str(formatString), ...loadArgs(typeMask)));
+  notfiyPrintListener(
+    typeMask == null
+      ? str(formatString)
+      : printf(str(formatString), ...loadArgs(typeMask))
+  );
 }
 
 function printDataString(start: number, len: number) {
@@ -114,8 +119,7 @@ function printDataString(start: number, len: number) {
 function fetchFile(name: number) {
   const file = files.get(str(name));
 
-  if (file === undefined)
-    error(`${str(name)} has to be prefetched in browser`);
+  if (file === undefined) error(`table "${str(name)}" does not exist`);
 
   const fileBuffer = new Uint8Array(file as ArrayBuffer);
 
@@ -136,12 +140,18 @@ export async function run(binary: BufferSource) {
 
   const memory = new WebAssembly.Memory({
     initial: 256,
-    maximum: heapInGb * Math.pow(2, 30) / bytesPerPage
+    maximum: (heapInGb * Math.pow(2, 30)) / bytesPerPage,
   });
 
   const env = {
-    abortStackOverflow: (err: number) => {throw new Error(`overflow: ` + err);},
-    table: new WebAssembly.Table({initial: 0, maximum: 0, element: 'anyfunc'}),
+    abortStackOverflow: (err: number) => {
+      throw new Error(`overflow: ` + err);
+    },
+    table: new WebAssembly.Table({
+      initial: 0,
+      maximum: 0,
+      element: "anyfunc",
+    }),
     __table_base: 0,
     memory,
     __memory_base: 1024,
@@ -151,7 +161,8 @@ export async function run(binary: BufferSource) {
     println: printlnString,
     printf: printfString,
     printData: printDataString,
-    stringSlice: (s: number, start: number, end: number) => save(str(s).slice(start, end)),
+    stringSlice: (s: number, start: number, end: number) =>
+      save(str(s).slice(start, end)),
     stringToDouble: (s: number) => Number.parseFloat(str(s)),
     stringToInt: (s: number) => Number.parseInt(str(s), 10),
     stringLength: (s: number) => str(s).length,
@@ -160,7 +171,7 @@ export async function run(binary: BufferSource) {
   };
 
   try {
-    const results = await WebAssembly.instantiate(binary, {env});
+    const results = await WebAssembly.instantiate(binary, { env });
 
     mem = results.instance.exports.mem;
 

@@ -1,35 +1,46 @@
 // tslint:disable:no-shadowed-variable
 
-import React from "react"
-import {List} from "immutable"
+import React from "react";
+import { List } from "immutable";
 
-import clsx from 'clsx';
-import { createStyles, Theme, withStyles, WithStyles } from '@material-ui/core/styles';
-import TableCell from '@material-ui/core/TableCell';
-import Paper from '@material-ui/core/Paper';
-import { AutoSizer, Column, Table, TableCellRenderer, TableHeaderProps, TableCellDataGetter } from 'react-virtualized';
-
+import clsx from "clsx";
+import {
+  createStyles,
+  Theme,
+  withStyles,
+  WithStyles,
+} from "@material-ui/core/styles";
+import TableCell from "@material-ui/core/TableCell";
+import Paper from "@material-ui/core/Paper";
+import {
+  AutoSizer,
+  Column,
+  Table,
+  TableCellRenderer,
+  TableHeaderProps,
+  TableCellDataGetter,
+} from "react-virtualized";
 
 const styles = (theme: Theme) =>
   createStyles({
     flexContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      boxSizing: 'border-box',
+      display: "flex",
+      alignItems: "center",
+      boxSizing: "border-box",
     },
     table: {
       // temporary right-to-left patch, waiting for
       // https://github.com/bvaughn/react-virtualized/issues/454
-      '& .ReactVirtualized__Table__headerRow': {
+      "& .ReactVirtualized__Table__headerRow": {
         flip: false,
-        paddingRight: theme.direction === 'rtl' ? '0px !important' : undefined,
+        paddingRight: theme.direction === "rtl" ? "0px !important" : undefined,
       },
     },
     tableRow: {
-      cursor: 'pointer',
+      cursor: "pointer",
     },
     tableRowHover: {
-      '&:hover': {
+      "&:hover": {
         backgroundColor: theme.palette.grey[200],
       },
     },
@@ -37,7 +48,7 @@ const styles = (theme: Theme) =>
       flex: 1,
     },
     noClick: {
-      cursor: 'initial',
+      cursor: "initial",
     },
   });
 
@@ -53,18 +64,22 @@ interface Row {
 }
 
 export interface CsvTableProps extends WithStyles<typeof styles> {
-  csvHeader: string,
-  csvData: List<string>,
-  delimiter?: string,
+  csvHeader: string;
+  csvData: List<string>;
+  delimiter?: string;
   headerHeight?: number;
   rowHeight?: number;
   onRowClick?: () => void;
 }
 
 function CsvTableUnstyled(props: CsvTableProps) {
-
-  const columns: ColumnData[] = props.csvHeader.split(props.delimiter!)
-    .map((c: string, i: number) => ({ dataKey: i.toString(), label: c, width: 150 }))
+  const columns: ColumnData[] = props.csvHeader
+    .split(props.delimiter!)
+    .map((c: string, i: number) => ({
+      dataKey: i.toString(),
+      label: c,
+      width: 150,
+    }));
 
   const getRowClassName = ({ index }: Row) => {
     const { classes, onRowClick } = props;
@@ -84,35 +99,46 @@ function CsvTableUnstyled(props: CsvTableProps) {
         })}
         variant="body"
         style={{ height: rowHeight }}
-        align={(columnIndex != null && columns[columnIndex].numeric) || false ? 'right' : 'left'}
+        align={
+          (columnIndex != null && columns[columnIndex].numeric) || false
+            ? "right"
+            : "left"
+        }
       >
         {cellData}
       </TableCell>
-    )
-  }
+    );
+  };
 
   const cellDataGetter: TableCellDataGetter = ({ dataKey, rowData }) =>
-    rowData.split(props.delimiter)[parseInt(dataKey, 10)]
+    rowData.split(props.delimiter)[parseInt(dataKey, 10)];
 
-  const headerRenderer = ({ label, columnIndex }: TableHeaderProps & { columnIndex: number }) => {
-    const { headerHeight,  classes } = props;
+  const headerRenderer = ({
+    label,
+    columnIndex,
+  }: TableHeaderProps & { columnIndex: number }) => {
+    const { headerHeight, classes } = props;
 
     return (
       <TableCell
         component="div"
-        className={clsx(classes.tableCell, classes.flexContainer, classes.noClick)}
+        className={clsx(
+          classes.tableCell,
+          classes.flexContainer,
+          classes.noClick
+        )}
         variant="head"
         style={{ height: headerHeight }}
-        align={columns[columnIndex].numeric || false ? 'right' : 'left'}
+        align={columns[columnIndex].numeric || false ? "right" : "left"}
       >
         <span>{label}</span>
       </TableCell>
     );
   };
 
-  const rowGetter = ({ index }: { index: number }) => props.csvData.get(index)
+  const rowGetter = ({ index }: { index: number }) => props.csvData.get(index);
 
-  const { classes,  rowHeight, headerHeight, ...tableProps } = props;
+  const { classes, rowHeight, headerHeight, ...tableProps } = props;
   return (
     <AutoSizer>
       {({ height, width }) => (
@@ -121,7 +147,7 @@ function CsvTableUnstyled(props: CsvTableProps) {
           width={width}
           rowHeight={rowHeight!}
           gridStyle={{
-            direction: 'inherit',
+            direction: "inherit",
           }}
           headerHeight={headerHeight!}
           className={classes.table}
@@ -134,7 +160,7 @@ function CsvTableUnstyled(props: CsvTableProps) {
             return (
               <Column
                 key={dataKey}
-                headerRenderer={headerProps =>
+                headerRenderer={(headerProps) =>
                   headerRenderer({
                     ...headerProps,
                     columnIndex: index,
@@ -158,6 +184,6 @@ CsvTableUnstyled.defaultProps = {
   headerHeight: 48,
   rowHeight: 48,
   delimiter: ",",
-}
+};
 
 export const CsvTable = withStyles(styles)(CsvTableUnstyled);

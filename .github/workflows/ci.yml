@@ -1,23 +1,23 @@
-name: CI 
+name: CI
 
-on: 
+on:
   push:
-  schedule: 
-  # trigger weekly at 12am
-  # this build should run with caches disabled
-  - cron: '0 0 * * 0'
+  schedule:
+    # trigger weekly at 12am
+    # this build should run with caches disabled
+    - cron: "0 0 * * 0"
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
+      - uses: actions/checkout@v1
 
-    - uses: actions/setup-node@v1
-      with:
-        node-version: 12.x
+      - uses: actions/setup-node@v1
+        with:
+          node-version: 12.x
 
-    - name: npm install, build, and test
-      run: |
-        npm ci
-        npm test
+      - name: npm install, build, and test
+        run: |
+          npm ci
+          npm test

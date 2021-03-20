@@ -1,52 +1,60 @@
-import React from 'react';
-import { render } from "react-dom"
-import { Provider } from 'react-redux';
+import React from "react";
+import { render } from "react-dom";
+import { Provider } from "react-redux";
 import { BrowserRouter as Router, Route, Link } from "react-router-dom";
 
-import Tool from "./view/tool"
-import Examples from "./view/examples"
-import Internals from "./view/internals"
-import { store } from './store';
+import {
+  AppBar,
+  CssBaseline,
+  Divider,
+  Drawer,
+  Hidden,
+  IconButton,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemIcon,
+  Toolbar,
+  Typography,
+} from "@material-ui/core";
 
-import AppBar from '@material-ui/core/AppBar';
-import CssBaseline from '@material-ui/core/CssBaseline';
-import Divider from '@material-ui/core/Divider';
-import Drawer from '@material-ui/core/Drawer';
-import Hidden from '@material-ui/core/Hidden';
-import IconButton from '@material-ui/core/IconButton';
-import InboxIcon from '@material-ui/icons/MoveToInbox';
-import List from '@material-ui/core/List';
-import ListItem from '@material-ui/core/ListItem';
-import ListItemIcon from '@material-ui/core/ListItemIcon';
-import ListItemText from '@material-ui/core/ListItemText';
-import MenuIcon from '@material-ui/icons/Menu';
-import Toolbar from '@material-ui/core/Toolbar';
-import Typography from '@material-ui/core/Typography';
-import { makeStyles, useTheme, Theme, createStyles } from '@material-ui/core/styles';
+import { Inbox as InboxIcon, Menu as MenuIcon } from "@material-ui/icons";
+
+import {
+  makeStyles,
+  useTheme,
+  Theme,
+  createStyles,
+} from "@material-ui/core/styles";
+
+import Tool from "./view/tool";
+import Examples from "./view/examples";
+import { Quickstart } from "./view/quickstart";
+import { store } from "./store";
 
 const drawerWidth = 240;
 
 const useStyles = makeStyles((theme: Theme) =>
   createStyles({
     root: {
-      display: 'flex',
+      display: "flex",
     },
     drawer: {
-      [theme.breakpoints.up('sm')]: {
+      [theme.breakpoints.up("sm")]: {
         width: drawerWidth,
         flexShrink: 0,
       },
     },
     appBar: {
-      [theme.breakpoints.up('sm')]: {
+      [theme.breakpoints.up("sm")]: {
         width: `calc(100% - ${drawerWidth}px)`,
         marginLeft: drawerWidth,
       },
     },
     menuButton: {
       marginRight: theme.spacing(2),
-      [theme.breakpoints.up('sm')]: {
-        display: 'none',
+      [theme.breakpoints.up("sm")]: {
+        display: "none",
       },
     },
     toolbar: theme.mixins.toolbar,
@@ -56,7 +64,7 @@ const useStyles = makeStyles((theme: Theme) =>
     content: {
       flexGrow: 1,
     },
-  }),
+  })
 );
 
 interface ResponsiveDrawerProps {
@@ -82,12 +90,22 @@ export default function App(props: ResponsiveDrawerProps) {
       <div className={classes.toolbar} />
       <Divider />
       <List>
-        <ListItem button component={Link} to ="/" key="home">
-          <ListItemIcon><InboxIcon /></ListItemIcon>
+        <ListItem button component={Link} to="/" key="home">
+          <ListItemIcon>
+            <InboxIcon />
+          </ListItemIcon>
           <ListItemText primary="Tool" />
         </ListItem>
-        <ListItem button component={Link} to ="/examples" key="examples">
-          <ListItemIcon><InboxIcon /></ListItemIcon>
+        <ListItem button component={Link} to="/quickstart" key="quickstart">
+          <ListItemIcon>
+            <InboxIcon />
+          </ListItemIcon>
+          <ListItemText primary="Quickstart" />
+        </ListItem>
+        <ListItem button component={Link} to="/examples" key="examples">
+          <ListItemIcon>
+            <InboxIcon />
+          </ListItemIcon>
           <ListItemText primary="Examples" />
         </ListItem>
       </List>
@@ -122,7 +140,7 @@ export default function App(props: ResponsiveDrawerProps) {
               <Drawer
                 container={container}
                 variant="temporary"
-                anchor={theme.direction === 'rtl' ? 'right' : 'left'}
+                anchor={theme.direction === "rtl" ? "right" : "left"}
                 open={mobileOpen}
                 onClose={handleDrawerToggle}
                 classes={{
@@ -131,7 +149,7 @@ export default function App(props: ResponsiveDrawerProps) {
                 ModalProps={{
                   keepMounted: true, // Better open performance on mobile.
                 }}
-             >
+              >
                 {drawer}
               </Drawer>
             </Hidden>
@@ -149,8 +167,9 @@ export default function App(props: ResponsiveDrawerProps) {
           </nav>
           <div className={classes.content}>
             <div className={classes.toolbar} />
-              <Route exact path="/" component={Tool} />
-              <Route path="/examples" component={Examples} />
+            <Route exact path="/" component={Tool} />
+            <Route path="/quickstart" component={Quickstart} />
+            <Route path="/examples" component={Examples} />
           </div>
         </Router>
       </Provider>
@@ -158,4 +177,4 @@ export default function App(props: ResponsiveDrawerProps) {
   );
 }
 
-render(<App />, document.getElementById('main'));
+render(<App />, document.getElementById("main"));
